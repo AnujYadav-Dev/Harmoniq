@@ -1,4 +1,4 @@
-﻿package dev.anujyadav.harmoniq
+package dev.anujyadav.harmoniq
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -25,6 +25,7 @@ class MainActivity : ComponentActivity() {
         }
 
         Thread.setDefaultUncaughtExceptionHandler { _, err ->
+            ignition.emitReady()
             Logger.error("MainActivity", "uncaught exception", err)
             ErrorActivity.start(this, err)
             finish()

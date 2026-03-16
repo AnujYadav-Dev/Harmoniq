@@ -1,0 +1,154 @@
+﻿package dev.anujyadav.harmoniq.ui.view
+
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import dev.anujyadav.harmoniq.ui.components.NowPlayingBottomBar
+import dev.anujyadav.harmoniq.ui.helpers.ScaleTransition
+import dev.anujyadav.harmoniq.ui.helpers.SlideTransition
+import dev.anujyadav.harmoniq.ui.helpers.ViewContext
+import dev.anujyadav.harmoniq.ui.view.navigation.MainTab
+import dev.anujyadav.harmoniq.utils.AppStrings
+import kotlinx.serialization.Serializable
+
+@Serializable
+object MainShellViewRoute
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainShellView(context: ViewContext) {
+
+    val currentTab by context.symphony.settings.lastMainTab.flow.collectAsState()
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                ),
+                title = {
+                    Crossfade(
+                        label = "main-shell-title",
+                        targetState = currentTab.label,
+                    ) {
+                        if (currentTab == MainTab.LIBRARY) {
+                            Column {
+                                Text(
+                                    it,
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                    ),
+                                )
+                                val songIds by context.symphony.groove.song.all.collectAsState()
+                                val albumIds by context.symphony.groove.album.all.collectAsState()
+                                val artistNames by context.symphony.groove.artist.all.collectAsState()
+                                Text(
+                                    "${AppStrings.XSongs(songIds.size.toString())} • ${AppStrings.XAlbums(albumIds.size.toString())} • ${AppStrings.XArtists(artistNames.size.toString())}",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                    )
+                                )
+                            }
+                        } else {
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                ),
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            context.navController.navigate(SettingsViewRoute())
+                        }
+                    ) {
+                        Icon(Icons.Filled.Settings, AppStrings.Settings)
+                    }
+                }
+            )
+        },
+        content = { contentPadding ->
+            AnimatedContent(
+                label = "main-shell-content",
+                targetState = currentTab,
+                modifier = Modifier
+                    .padding(contentPadding)
+                    .fillMaxSize(),
+                transitionSpec = {
+                    SlideTransition.slideUp.enterTransition()
+                        .togetherWith(ScaleTransition.scaleDown.exitTransition())
+                },
+            ) { tab ->
+                when (tab) {
+                    MainTab.HOME -> HomeTabContent(context)
+                    MainTab.SEARCH -> SearchTabContent(context)
+                    MainTab.LIBRARY -> LibraryTabContent(context)
+                }
+            }
+        },
+        bottomBar = {
+            Column {
+                NowPlayingBottomBar(context, false)
+                NavigationBar {
+                    MainTab.entries.forEach { tab ->
+                        val isSelected = currentTab == tab
+                        NavigationBarItem(
+                            selected = isSelected,
+                            icon = {
+                                Crossfade(
+                                    label = "main-shell-nav-icon",
+                                    targetState = isSelected,
+                                ) { selected ->
+                                    Icon(
+                                        if (selected) tab.selectedIcon else tab.unselectedIcon,
+                                        tab.label,
+                                    )
+                                }
+                            },
+                            label = {
+                                Text(
+                                    tab.label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    textAlign = TextAlign.Center,
+                                    overflow = TextOverflow.Ellipsis,
+                                    softWrap = false,
+                                )
+                            },
+                            onClick = {
+                                if (!isSelected) {
+                                    context.symphony.settings.lastMainTab.setValue(tab)
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    )
+}

@@ -228,6 +228,7 @@ object AppStrings {
     const val MostPlayed = "Most played"
     const val ContinueListening = "Continue listening"
     const val NoRecentPlays = "No recent plays"
+    const val ShowBottomNavLabels = "Show bottom navigation labels"
 
     // Error strings (previously in CommonTranslation)
     const val SomethingWentHorriblyWrong = "Something went horribly wrong!"

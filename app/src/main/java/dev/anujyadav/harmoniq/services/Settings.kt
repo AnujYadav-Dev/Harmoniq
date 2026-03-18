@@ -122,6 +122,7 @@ class Settings(private val symphony: Symphony) {
 
     val themeMode = EnumEntry("theme_mode", enumEntries<ThemeMode>(), ThemeMode.SYSTEM)
     val useMaterialYou = BooleanEntry("material_you", true)
+    val showBottomNavLabels = BooleanEntry("show_bottom_nav_labels", true)
     val lastUsedSongsSortBy = EnumEntry(
         "last_used_song_sort_by",
         enumEntries<SongRepository.SortBy>(),

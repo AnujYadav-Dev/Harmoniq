@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Colorize
 import androidx.compose.material.icons.filled.Face
+import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PhotoSizeSelectLarge
 import androidx.compose.material.icons.filled.TextFormat
@@ -58,6 +59,7 @@ fun AppearanceSettingsView(context: ViewContext) {
     val fontFamily by context.symphony.settings.fontFamily.flow.collectAsState()
     val themeMode by context.symphony.settings.themeMode.flow.collectAsState()
     val useMaterialYou by context.symphony.settings.useMaterialYou.flow.collectAsState()
+    val showBottomNavLabels by context.symphony.settings.showBottomNavLabels.flow.collectAsState()
     val primaryColor by context.symphony.settings.primaryColor.flow.collectAsState()
     val randomizePrimaryColor by context.symphony.settings.randomizePrimaryColor.flow.collectAsState()
     val fontScale by context.symphony.settings.fontScale.flow.collectAsState()
@@ -183,6 +185,19 @@ fun AppearanceSettingsView(context: ViewContext) {
                         value = useMaterialYou,
                         onChange = { value ->
                             context.symphony.settings.useMaterialYou.setValue(value)
+                        }
+                    )
+                    HorizontalDivider()
+                    SettingsSwitchTile(
+                        icon = {
+                            Icon(Icons.Filled.Label, null)
+                        },
+                        title = {
+                            Text(AppStrings.ShowBottomNavLabels)
+                        },
+                        value = showBottomNavLabels,
+                        onChange = { value ->
+                            context.symphony.settings.showBottomNavLabels.setValue(value)
                         }
                     )
                     HorizontalDivider()

@@ -71,33 +71,6 @@ class ArtistRepository(private val symphony: Symphony) {
         }
     }
 
-    internal fun remove(song: Song) {
-        song.artists.forEach { artist ->
-            songIdsCache[artist]?.remove(song.id)
-            val artistObj = cache[artist] ?: return@forEach
-            artistObj.numberOfTracks--
-            symphony.groove.album.getIdFromSong(song)?.let { albumId ->
-                val remainingSongIds = songIdsCache[artist] ?: emptySet()
-                val remainingAlbums = mutableSetOf<String>()
-                remainingSongIds.forEach { sid ->
-                    symphony.groove.song.get(sid)?.let { s ->
-                        symphony.groove.album.getIdFromSong(s)?.let { remainingAlbums.add(it) }
-                    }
-                }
-                albumIdsCache[artist]?.clear()
-                albumIdsCache[artist]?.addAll(remainingAlbums)
-                artistObj.numberOfAlbums = remainingAlbums.size
-            }
-            if (artistObj.numberOfTracks <= 0) {
-                cache.remove(artist)
-                songIdsCache.remove(artist)
-                albumIdsCache.remove(artist)
-                _all.update { it - artist }
-                emitCount()
-            }
-        }
-    }
-
     fun reset() {
         cache.clear()
         _all.update {

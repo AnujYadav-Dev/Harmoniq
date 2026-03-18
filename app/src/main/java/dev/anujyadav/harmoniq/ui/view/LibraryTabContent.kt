@@ -128,7 +128,7 @@ fun LibraryTabContent(context: ViewContext) {
 
     PullToRefreshBox(
         isRefreshing = isUpdating,
-        onRefresh = { context.symphony.groove.fetch(Groove.FetchOptions()) },
+        onRefresh = { context.symphony.groove.fetch(Groove.FetchOptions(resetInMemoryCache = true)) },
         modifier = Modifier.fillMaxSize(),
         state = pullRefreshState,
         indicator = {

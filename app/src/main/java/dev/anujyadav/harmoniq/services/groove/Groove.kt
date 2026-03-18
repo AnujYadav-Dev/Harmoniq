@@ -81,14 +81,6 @@ class Groove(private val symphony: Symphony) : Symphony.Hooks {
         }
     }
 
-    fun removeSong(s: Song) {
-        albumArtist.remove(s)
-        album.remove(s)
-        artist.remove(s)
-        genre.remove(s)
-        song.remove(s)
-    }
-
     override fun onSymphonyReady() {
         coroutineScope.launch {
             fetch()

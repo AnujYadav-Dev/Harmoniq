@@ -1,4 +1,4 @@
-﻿package dev.anujyadav.harmoniq.ui.view
+package dev.anujyadav.harmoniq.ui.view
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -21,10 +22,14 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import dev.anujyadav.harmoniq.ui.components.NewPlaylistDialog
 import dev.anujyadav.harmoniq.ui.components.NowPlayingBottomBar
 import dev.anujyadav.harmoniq.ui.helpers.ScaleTransition
 import dev.anujyadav.harmoniq.ui.helpers.SlideTransition
@@ -41,6 +46,19 @@ object MainShellViewRoute
 fun MainShellView(context: ViewContext) {
 
     val currentTab by context.symphony.settings.lastMainTab.flow.collectAsState()
+    val showBottomNavLabels by context.symphony.settings.showBottomNavLabels.flow.collectAsState()
+    var showNewPlaylistDialog by remember { mutableStateOf(false) }
+
+    if (showNewPlaylistDialog) {
+        NewPlaylistDialog(
+            context = context,
+            onDone = { playlist ->
+                showNewPlaylistDialog = false
+                context.symphony.groove.playlist.add(playlist)
+            },
+            onDismissRequest = { showNewPlaylistDialog = false }
+        )
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -83,6 +101,11 @@ fun MainShellView(context: ViewContext) {
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = { showNewPlaylistDialog = true }
+                    ) {
+                        Icon(Icons.Filled.Add, AppStrings.NewPlaylist)
+                    }
                     IconButton(
                         onClick = {
                             context.navController.navigate(SettingsViewRoute())
@@ -131,15 +154,18 @@ fun MainShellView(context: ViewContext) {
                                     )
                                 }
                             },
-                            label = {
-                                Text(
-                                    tab.label,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    textAlign = TextAlign.Center,
-                                    overflow = TextOverflow.Ellipsis,
-                                    softWrap = false,
-                                )
-                            },
+                            label = if (showBottomNavLabels) {
+                                {
+                                    Text(
+                                        tab.label,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        textAlign = TextAlign.Center,
+                                        overflow = TextOverflow.Ellipsis,
+                                        softWrap = false,
+                                    )
+                                }
+                            } else null,
+                            alwaysShowLabel = showBottomNavLabels,
                             onClick = {
                                 if (!isSelected) {
                                     context.symphony.settings.lastMainTab.setValue(tab)

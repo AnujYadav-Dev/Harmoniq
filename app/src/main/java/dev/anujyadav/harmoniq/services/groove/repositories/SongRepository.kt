@@ -1,4 +1,4 @@
-﻿package dev.anujyadav.harmoniq.services.groove.repositories
+package dev.anujyadav.harmoniq.services.groove.repositories
 
 import android.net.Uri
 import androidx.core.net.toUri
@@ -69,6 +69,14 @@ class SongRepository(private val symphony: Symphony) {
         _all.update {
             it + song.id
         }
+        emitCount()
+    }
+
+    internal fun remove(song: Song) {
+        if (cache.remove(song.id) == null) return
+        pathCache.remove(song.path)
+        emitIds()
+        _all.update { it - song.id }
         emitCount()
     }
 

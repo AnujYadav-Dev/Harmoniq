@@ -1,4 +1,4 @@
-﻿package dev.anujyadav.harmoniq.services.groove.repositories
+package dev.anujyadav.harmoniq.services.groove.repositories
 
 import dev.anujyadav.harmoniq.Symphony
 import dev.anujyadav.harmoniq.services.groove.Album
@@ -80,6 +80,20 @@ class AlbumRepository(private val symphony: Symphony) {
                     duration = song.duration.milliseconds,
                 )
             }
+        }
+    }
+
+    internal fun remove(song: Song) {
+        val albumId = getIdFromSong(song) ?: return
+        songIdsCache[albumId]?.remove(song.id)
+        val album = cache[albumId] ?: return
+        album.numberOfTracks--
+        album.duration -= song.duration.milliseconds
+        if (album.numberOfTracks <= 0) {
+            cache.remove(albumId)
+            songIdsCache.remove(albumId)
+            _all.update { it - albumId }
+            emitCount()
         }
     }
 

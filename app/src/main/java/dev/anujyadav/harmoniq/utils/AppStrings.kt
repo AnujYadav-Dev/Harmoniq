@@ -1,4 +1,4 @@
-﻿package dev.anujyadav.harmoniq.utils
+package dev.anujyadav.harmoniq.utils
 
 /**
  * Central object containing all English UI strings for the application.
@@ -75,6 +75,8 @@ object AppStrings {
     const val Genre = "Genre"
     const val DamnThisIsSoEmpty = "Damn, this is so empty!"
     const val PrimaryColor = "Primary color"
+    const val RandomizePrimaryColor = "Randomize accent color on restart"
+    const val DisabledMaterialYou = "Disabled when Material You is active"
     const val PlayAll = "Play all"
     const val ForYou = "For you"
     const val SuggestedAlbums = "Suggested albums"

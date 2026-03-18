@@ -1,4 +1,4 @@
-﻿package dev.anujyadav.harmoniq.services
+package dev.anujyadav.harmoniq.services
 
 import android.content.Context
 import android.net.Uri
@@ -271,6 +271,7 @@ class Settings(private val symphony: Symphony) {
     val playOnHeadphonesConnect = BooleanEntry("play_on_headphones_connect", false)
     val pauseOnHeadphonesDisconnect = BooleanEntry("pause_on_headphones_disconnect", true)
     val primaryColor = NullableStringEntry("primary_color")
+    val randomizePrimaryColor = BooleanEntry("randomize_primary_color", false)
     val fadePlaybackDuration = FloatEntry("fade_playback_duration", 1f)
     val forYouContents = EnumSetEntry(
         "for_you_contents",

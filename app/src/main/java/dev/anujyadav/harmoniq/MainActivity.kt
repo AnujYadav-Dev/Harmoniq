@@ -35,6 +35,11 @@ class MainActivity : ComponentActivity() {
         symphony.permission.handle(this)
         gSymphony = symphony
         symphony.emitActivityReady()
+
+        if (!symphony.settings.useMaterialYou.value && symphony.settings.randomizePrimaryColor.value) {
+            val randomColor = dev.anujyadav.harmoniq.ui.theme.PrimaryThemeColor.entries.random()
+            symphony.settings.primaryColor.setValue(randomColor.name)
+        }
         attachHandlers()
 
         enableEdgeToEdge()

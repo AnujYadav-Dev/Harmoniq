@@ -1,4 +1,4 @@
-﻿package dev.anujyadav.harmoniq.ui.view
+package dev.anujyadav.harmoniq.ui.view
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +35,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -166,9 +170,27 @@ fun SearchTabContent(context: ViewContext) {
         }
     }
 
-    Column(modifier = Modifier
-        .fillMaxSize()
-        .clipToBounds()) {
+    val isUpdating by context.symphony.groove.exposer.isUpdating.collectAsState()
+    val pullRefreshState = rememberPullToRefreshState()
+
+    PullToRefreshBox(
+        isRefreshing = isUpdating,
+        onRefresh = { context.symphony.groove.fetch(Groove.FetchOptions()) },
+        modifier = Modifier.fillMaxSize(),
+        state = pullRefreshState,
+        indicator = {
+            PullToRefreshDefaults.Indicator(
+                modifier = Modifier.align(Alignment.TopCenter),
+                isRefreshing = isUpdating,
+                state = pullRefreshState,
+                color = MaterialTheme.colorScheme.primary,
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        }
+    ) {
+        Column(modifier = Modifier
+            .fillMaxSize()
+            .clipToBounds()) {
         // Search bar (no back button â€” embedded in tab)
         TextField(
             modifier = Modifier
@@ -418,6 +440,7 @@ fun SearchTabContent(context: ViewContext) {
             }
         }
     }
+}
 }
 
 @Composable

@@ -1,4 +1,4 @@
-﻿package dev.anujyadav.harmoniq.ui.view.settings
+package dev.anujyadav.harmoniq.ui.view.settings
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -59,6 +59,7 @@ fun AppearanceSettingsView(context: ViewContext) {
     val themeMode by context.symphony.settings.themeMode.flow.collectAsState()
     val useMaterialYou by context.symphony.settings.useMaterialYou.flow.collectAsState()
     val primaryColor by context.symphony.settings.primaryColor.flow.collectAsState()
+    val randomizePrimaryColor by context.symphony.settings.randomizePrimaryColor.flow.collectAsState()
     val fontScale by context.symphony.settings.fontScale.flow.collectAsState()
     val contentScale by context.symphony.settings.contentScale.flow.collectAsState()
 
@@ -197,6 +198,23 @@ fun AppearanceSettingsView(context: ViewContext) {
                         enabled = !useMaterialYou,
                         onChange = { value ->
                             context.symphony.settings.primaryColor.setValue(value.name)
+                        }
+                    )
+                    HorizontalDivider()
+                    SettingsSwitchTile(
+                        icon = {
+                            Icon(Icons.Filled.Palette, null)
+                        },
+                        title = {
+                            Text(AppStrings.RandomizePrimaryColor)
+                        },
+                        subtitle = if (useMaterialYou) {
+                            { Text(AppStrings.DisabledMaterialYou) }
+                        } else null,
+                        value = randomizePrimaryColor,
+                        enabled = !useMaterialYou,
+                        onChange = { value ->
+                            context.symphony.settings.randomizePrimaryColor.setValue(value)
                         }
                     )
                 }

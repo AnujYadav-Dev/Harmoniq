@@ -1,4 +1,4 @@
-﻿package dev.anujyadav.harmoniq.ui.view
+package dev.anujyadav.harmoniq.ui.view
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -50,6 +50,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import dev.anujyadav.harmoniq.services.groove.Groove
 import coil.compose.AsyncImage
 import dev.anujyadav.harmoniq.services.groove.Playlist
 import dev.anujyadav.harmoniq.ui.components.AlbumTile
@@ -119,7 +123,25 @@ fun LibraryTabContent(context: ViewContext) {
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    val isUpdating by context.symphony.groove.exposer.isUpdating.collectAsState()
+    val pullRefreshState = rememberPullToRefreshState()
+
+    PullToRefreshBox(
+        isRefreshing = isUpdating,
+        onRefresh = { context.symphony.groove.fetch(Groove.FetchOptions()) },
+        modifier = Modifier.fillMaxSize(),
+        state = pullRefreshState,
+        indicator = {
+            PullToRefreshDefaults.Indicator(
+                modifier = Modifier.align(Alignment.TopCenter),
+                isRefreshing = isUpdating,
+                state = pullRefreshState,
+                color = MaterialTheme.colorScheme.primary,
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        }
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
         PillNavRow(
             context = context,
             pills = libraryPillOrder,
@@ -140,6 +162,7 @@ fun LibraryTabContent(context: ViewContext) {
             )
         }
     }
+}
 
     if (showReorderSheet) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)

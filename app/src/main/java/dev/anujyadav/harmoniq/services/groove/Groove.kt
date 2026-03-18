@@ -1,4 +1,4 @@
-﻿package dev.anujyadav.harmoniq.services.groove
+package dev.anujyadav.harmoniq.services.groove
 
 import dev.anujyadav.harmoniq.Symphony
 import dev.anujyadav.harmoniq.services.groove.repositories.AlbumArtistRepository
@@ -79,6 +79,14 @@ class Groove(private val symphony: Symphony) : Symphony.Hooks {
             }
             fetch()
         }
+    }
+
+    fun removeSong(s: Song) {
+        albumArtist.remove(s)
+        album.remove(s)
+        artist.remove(s)
+        genre.remove(s)
+        song.remove(s)
     }
 
     override fun onSymphonyReady() {

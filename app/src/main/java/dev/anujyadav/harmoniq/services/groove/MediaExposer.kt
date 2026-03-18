@@ -1,4 +1,4 @@
-﻿package dev.anujyadav.harmoniq.services.groove
+package dev.anujyadav.harmoniq.services.groove
 
 import android.net.Uri
 import dev.anujyadav.harmoniq.Symphony
@@ -173,6 +173,12 @@ class MediaExposer(private val symphony: Symphony) {
     }
 
     private suspend fun trimCache(cycle: ScanCycle) {
+        val deletedSongs = cycle.songCache.values.filter { cycle.songCacheUnused.contains(it.id) }
+        withContext(Dispatchers.Main) {
+            deletedSongs.forEach {
+                symphony.groove.removeSong(it)
+            }
+        }
         try {
             symphony.database.songCache.delete(cycle.songCacheUnused)
         } catch (err: Exception) {

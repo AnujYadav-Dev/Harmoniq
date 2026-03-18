@@ -1,4 +1,4 @@
-﻿package dev.anujyadav.harmoniq.services.groove.repositories
+package dev.anujyadav.harmoniq.services.groove.repositories
 
 import dev.anujyadav.harmoniq.Symphony
 import dev.anujyadav.harmoniq.services.groove.Genre
@@ -54,6 +54,20 @@ class GenreRepository(private val symphony: Symphony) {
                         numberOfTracks = 1,
                     )
                 }
+            }
+        }
+    }
+
+    internal fun remove(song: Song) {
+        song.genres.forEach { genre ->
+            songIdsCache[genre]?.remove(song.id)
+            val genreObj = cache[genre] ?: return@forEach
+            genreObj.numberOfTracks--
+            if (genreObj.numberOfTracks <= 0) {
+                cache.remove(genre)
+                songIdsCache.remove(genre)
+                _all.update { it - genre }
+                emitCount()
             }
         }
     }

@@ -48,6 +48,7 @@ import dev.anujyadav.harmoniq.services.groove.repositories.AlbumRepository
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 
 import dev.anujyadav.harmoniq.utils.AppStrings
+import dev.anujyadav.harmoniq.ui.components.MediaLayout
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,6 +66,7 @@ fun AlbumGrid(
     }
     val horizontalGridColumns by context.symphony.settings.lastUsedAlbumsHorizontalGridColumns.flow.collectAsState()
     val verticalGridColumns by context.symphony.settings.lastUsedAlbumsVerticalGridColumns.flow.collectAsState()
+    val layout by context.symphony.settings.lastUsedAlbumsLayout.flow.collectAsState()
     val gridColumns by remember(horizontalGridColumns, verticalGridColumns) {
         derivedStateOf {
             ResponsiveGridColumns(horizontalGridColumns, verticalGridColumns)
@@ -90,6 +92,8 @@ fun AlbumGrid(
                 label = {
                     Text(AppStrings.XAlbums((albumsCount ?: albumIds.size).toString()))
                 },
+                layout = layout,
+                onLayoutChange = { context.symphony.settings.lastUsedAlbumsLayout.setValue(it) },
                 onShowModifyLayout = {
                     showModifyLayoutSheet = true
                 },
@@ -108,14 +112,17 @@ fun AlbumGrid(
                     content = { Text(AppStrings.DamnThisIsSoEmpty) }
                 )
 
-                else -> ResponsiveGrid(gridColumns) {
+                else -> ResponsiveGrid(gridColumns, layout) {
                     itemsIndexed(
                         sortedAlbumIds,
                         key = { i, x -> "$i-$x" },
                         contentType = { _, _ -> Groove.Kind.ALBUM }
                     ) { _, albumId ->
                         context.symphony.groove.album.get(albumId)?.let { album ->
-                            AlbumTile(context, album)
+                            when (layout) {
+                                MediaLayout.Grid -> AlbumTile(context, album)
+                                MediaLayout.List -> AlbumListItem(context, album)
+                            }
                         }
                     }
                 }

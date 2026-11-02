@@ -11,14 +11,16 @@ fun SettingsSimpleTile(
     icon: @Composable () -> Unit,
     title: @Composable () -> Unit,
     subtitle: (@Composable () -> Unit)? = null,
+    enabled: Boolean = true,
     onClick: () -> Unit = {},
 ) {
     Card(
+        enabled = enabled,
         colors = SettingsTileDefaults.cardColors(),
         onClick = onClick
     ) {
         ListItem(
-            colors = SettingsTileDefaults.listItemColors(),
+            colors = SettingsTileDefaults.listItemColors(enabled = enabled),
             leadingContent = { icon() },
             headlineContent = { title() },
             supportingContent = { subtitle?.let { it() } }

@@ -39,6 +39,10 @@ import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 import dev.anujyadav.harmoniq.ui.view.navigation.MainTab
 import dev.anujyadav.harmoniq.utils.AppStrings
 import kotlinx.serialization.Serializable
+import dev.anujyadav.harmoniq.ui.components.PlaylistSwipeScope
+import dev.anujyadav.harmoniq.ui.components.ProvideSwipeScope
+import dev.anujyadav.harmoniq.ui.components.SongSwipeScope
+import dev.anujyadav.harmoniq.ui.components.LabeledIconButton
 
 @Serializable
 object MainShellViewRoute
@@ -111,23 +115,23 @@ fun MainShellView(context: ViewContext) {
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = { showMediaFoldersDialog = true }
-                    ) {
-                        Icon(Icons.Filled.CreateNewFolder, AppStrings.ManageMediaFolders)
-                    }
-                    IconButton(
-                        onClick = { showNewPlaylistDialog = true }
-                    ) {
-                        Icon(Icons.Filled.Add, AppStrings.NewPlaylist)
-                    }
-                    IconButton(
+                    LabeledIconButton(
+                        icon = Icons.Filled.CreateNewFolder,
+                        label = AppStrings.ManageMediaFolders,
+                        onClick = { showMediaFoldersDialog = true },
+                    )
+                    LabeledIconButton(
+                        icon = Icons.Filled.Add,
+                        label = AppStrings.NewPlaylist,
+                        onClick = { showNewPlaylistDialog = true },
+                    )
+                    LabeledIconButton(
+                        icon = Icons.Filled.Settings,
+                        label = AppStrings.Settings,
                         onClick = {
                             context.navController.navigate(SettingsViewRoute())
-                        }
-                    ) {
-                        Icon(Icons.Filled.Settings, AppStrings.Settings)
-                    }
+                        },
+                    )
                 }
             )
         },
@@ -145,7 +149,12 @@ fun MainShellView(context: ViewContext) {
             ) { tab ->
                 when (tab) {
                     MainTab.HOME -> HomeTabContent(context)
-                    MainTab.SEARCH -> SearchTabContent(context)
+                    MainTab.SEARCH -> ProvideSwipeScope(
+                        songScope = SongSwipeScope.Search,
+                        playlistScope = PlaylistSwipeScope.Search,
+                    ) {
+                        SearchTabContent(context)
+                    }
                     MainTab.LIBRARY -> LibraryTabContent(context)
                 }
             }

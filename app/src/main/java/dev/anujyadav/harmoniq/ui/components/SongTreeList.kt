@@ -241,86 +241,90 @@ fun SongTreeListContent(
                             derivedStateOf { favoriteIds.contains(song.id) }
                         }
 
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(5.dp))
-                                .clickable {
-                                    context.symphony.radio.shorty.playQueue(
-                                        songIds,
-                                        Radio.PlayOptions(index = songIds.indexOf(song.id))
-                                    )
-                                }
-                                .padding(start = 12.dp, end = 8.dp, top = 6.dp, bottom = 6.dp)
-                        ) {
-                            AsyncImage(
-                                song.createArtworkImageRequest(context.symphony)
-                                    .build(),
-                                null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(30.dp)
-                                    .clip(RoundedCornerShape(5.dp)),
+                        val playSong = {
+                            context.symphony.radio.shorty.playQueue(
+                                songIds,
+                                Radio.PlayOptions(index = songIds.indexOf(song.id))
                             )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    song.title,
-                                    style = MaterialTheme.typography.labelLarge.copy(
-                                        color = when {
-                                            isCurrentPlaying -> MaterialTheme.colorScheme.primary
-                                            else -> LocalTextStyle.current.color
-                                        }
-                                    ),
-                                )
-                                if (song.artists.isNotEmpty()) {
-                                    Text(
-                                        song.artists.joinToString(),
-                                        style = MaterialTheme.typography.labelSmall,
-                                    )
-                                }
-                            }
-                            Row {
-                                if (isFavorite) {
-                                    SongTreeListSongCardIconButton(
-                                        icon = { modifier ->
-                                            Icon(
-                                                Icons.Filled.Favorite,
-                                                null,
-                                                modifier = modifier,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                            )
-                                        },
-                                        onClick = {
-                                            context.symphony.groove.playlist.unfavorite(song.id)
-                                        }
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(4.dp))
+                        }
 
-                                var showOptionsMenu by remember { mutableStateOf(false) }
-                                SongTreeListSongCardIconButton(
-                                    icon = { modifier ->
-                                        Icon(
-                                            Icons.Filled.MoreVert,
-                                            null,
-                                            modifier = modifier,
+                        SongActionsHost(context, song, onPlay = playSong) { actions ->
+                            SongSwipeActionsBox(context, actions) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(5.dp))
+                                        .clickable { playSong() }
+                                        .padding(start = 12.dp, end = 8.dp, top = 6.dp, bottom = 6.dp)
+                                ) {
+                                    AsyncImage(
+                                        song.createArtworkImageRequest(context.symphony)
+                                            .build(),
+                                        null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .size(30.dp)
+                                            .clip(RoundedCornerShape(5.dp)),
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            song.title,
+                                            style = MaterialTheme.typography.labelLarge.copy(
+                                                color = when {
+                                                    isCurrentPlaying -> MaterialTheme.colorScheme.primary
+                                                    else -> LocalTextStyle.current.color
+                                                }
+                                            ),
                                         )
-                                        SongDropdownMenu(
-                                            context,
-                                            song,
-                                            isFavorite = isFavorite,
-                                            expanded = showOptionsMenu,
-                                            onDismissRequest = {
-                                                showOptionsMenu = false
+                                        if (song.artists.isNotEmpty()) {
+                                            Text(
+                                                song.artists.joinToString(),
+                                                style = MaterialTheme.typography.labelSmall,
+                                            )
+                                        }
+                                    }
+                                    Row {
+                                        if (isFavorite) {
+                                            SongTreeListSongCardIconButton(
+                                                icon = { modifier ->
+                                                    Icon(
+                                                        Icons.Filled.Favorite,
+                                                        null,
+                                                        modifier = modifier,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                    )
+                                                },
+                                                onClick = {
+                                                    context.symphony.groove.playlist.unfavorite(song.id)
+                                                }
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(4.dp))
+
+                                        var showOptionsMenu by remember { mutableStateOf(false) }
+                                        SongTreeListSongCardIconButton(
+                                            icon = { modifier ->
+                                                Icon(
+                                                    Icons.Filled.MoreVert,
+                                                    null,
+                                                    modifier = modifier,
+                                                )
+                                                SongDropdownMenu(
+                                                    actions,
+                                                    expanded = showOptionsMenu,
+                                                    onDismissRequest = {
+                                                        showOptionsMenu = false
+                                                    }
+                                                )
+                                            },
+                                            onClick = {
+                                                showOptionsMenu = !showOptionsMenu
                                             }
                                         )
-                                    },
-                                    onClick = {
-                                        showOptionsMenu = !showOptionsMenu
                                     }
-                                )
+                                }
                             }
                         }
                     }

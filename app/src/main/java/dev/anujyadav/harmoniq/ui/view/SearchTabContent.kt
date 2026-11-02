@@ -56,7 +56,9 @@ import dev.anujyadav.harmoniq.ui.components.AlbumDropdownMenu
 import dev.anujyadav.harmoniq.ui.components.ArtistDropdownMenu
 import dev.anujyadav.harmoniq.ui.components.GenericGrooveCard
 import dev.anujyadav.harmoniq.ui.components.IconTextBody
+import dev.anujyadav.harmoniq.ui.components.PlaylistActionsHost
 import dev.anujyadav.harmoniq.ui.components.PlaylistDropdownMenu
+import dev.anujyadav.harmoniq.ui.components.PlaylistSwipeActionsBox
 import dev.anujyadav.harmoniq.ui.components.SongCard
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 import dev.anujyadav.harmoniq.utils.AppStrings
@@ -66,6 +68,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import dev.anujyadav.harmoniq.ui.components.AlbumArtistListItem
+import dev.anujyadav.harmoniq.ui.components.AlbumListItem
+import dev.anujyadav.harmoniq.ui.components.ArtistListItem
+import dev.anujyadav.harmoniq.ui.components.GenreListItem
+import dev.anujyadav.harmoniq.ui.components.PlaylistListItem
 
 private data class SearchTabResult(
     val songIds: List<String>,
@@ -305,24 +312,7 @@ fun SearchTabContent(context: ViewContext) {
                                     artistNames.forEach { artistName ->
                                         context.symphony.groove.artist.get(artistName)
                                             ?.let { artist ->
-                                                GenericGrooveCard(
-                                                    image = artist
-                                                        .createArtworkImageRequest(context.symphony)
-                                                        .build(),
-                                                    title = { Text(artist.name) },
-                                                    options = { expanded, onDismissRequest ->
-                                                        ArtistDropdownMenu(
-                                                            context, artist,
-                                                            expanded = expanded,
-                                                            onDismissRequest = onDismissRequest,
-                                                        )
-                                                    },
-                                                    onClick = {
-                                                        context.navController.navigate(
-                                                            ArtistViewRoute(artist.name)
-                                                        )
-                                                    }
-                                                )
+                                                ArtistListItem(context, artist)
                                             }
                                     }
                                 }
@@ -331,27 +321,7 @@ fun SearchTabContent(context: ViewContext) {
                                     albumIds.forEach { albumId ->
                                         context.symphony.groove.album.get(albumId)
                                             ?.let { album ->
-                                                GenericGrooveCard(
-                                                    image = album
-                                                        .createArtworkImageRequest(context.symphony)
-                                                        .build(),
-                                                    title = { Text(album.name) },
-                                                    subtitle = album.artists
-                                                        .joinToStringIfNotEmpty()
-                                                        ?.let { { Text(it) } },
-                                                    options = { expanded, onDismissRequest ->
-                                                        AlbumDropdownMenu(
-                                                            context, album,
-                                                            expanded = expanded,
-                                                            onDismissRequest = onDismissRequest,
-                                                        )
-                                                    },
-                                                    onClick = {
-                                                        context.navController.navigate(
-                                                            AlbumViewRoute(album.id)
-                                                        )
-                                                    }
-                                                )
+                                                AlbumListItem(context, album)
                                             }
                                     }
                                 }
@@ -360,24 +330,7 @@ fun SearchTabContent(context: ViewContext) {
                                     albumArtistNames.forEach { albumArtistName ->
                                         context.symphony.groove.albumArtist.get(albumArtistName)
                                             ?.let { albumArtist ->
-                                                GenericGrooveCard(
-                                                    image = albumArtist
-                                                        .createArtworkImageRequest(context.symphony)
-                                                        .build(),
-                                                    title = { Text(albumArtist.name) },
-                                                    options = { expanded, onDismissRequest ->
-                                                        AlbumArtistDropdownMenu(
-                                                            context, albumArtist,
-                                                            expanded = expanded,
-                                                            onDismissRequest = onDismissRequest,
-                                                        )
-                                                    },
-                                                    onClick = {
-                                                        context.navController.navigate(
-                                                            AlbumArtistViewRoute(albumArtist.name)
-                                                        )
-                                                    }
-                                                )
+                                                AlbumArtistListItem(context, albumArtist)
                                             }
                                     }
                                 }
@@ -386,24 +339,7 @@ fun SearchTabContent(context: ViewContext) {
                                     playlistIds.forEach { playlistId ->
                                         context.symphony.groove.playlist.get(playlistId)
                                             ?.let { playlist ->
-                                                GenericGrooveCard(
-                                                    image = playlist
-                                                        .createArtworkImageRequest(context.symphony)
-                                                        .build(),
-                                                    title = { Text(playlist.title) },
-                                                    options = { expanded, onDismissRequest ->
-                                                        PlaylistDropdownMenu(
-                                                            context, playlist,
-                                                            expanded = expanded,
-                                                            onDismissRequest = onDismissRequest,
-                                                        )
-                                                    },
-                                                    onClick = {
-                                                        context.navController.navigate(
-                                                            PlaylistViewRoute(playlist.id)
-                                                        )
-                                                    }
-                                                )
+                                                PlaylistListItem(context, playlist)
                                             }
                                     }
                                 }
@@ -412,23 +348,7 @@ fun SearchTabContent(context: ViewContext) {
                                     genreNames.forEach { genreName ->
                                         context.symphony.groove.genre.get(genreName)
                                             ?.let { genre ->
-                                                GenericGrooveCard(
-                                                    image = null,
-                                                    title = { Text(genre.name) },
-                                                    subtitle = {
-                                                        Text(
-                                                            AppStrings.XSongs(
-                                                                genre.numberOfTracks.toString()
-                                                            )
-                                                        )
-                                                    },
-                                                    options = null,
-                                                    onClick = {
-                                                        context.navController.navigate(
-                                                            GenreViewRoute(genre.name)
-                                                        )
-                                                    }
-                                                )
+                                                GenreListItem(context, genre)
                                             }
                                     }
                                 }

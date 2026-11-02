@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import dev.anujyadav.harmoniq.ui.components.IconButtonPlaceholder
 import dev.anujyadav.harmoniq.ui.components.TopAppBarMinimalTitle
 import dev.anujyadav.harmoniq.ui.components.settings.SettingsSideHeading
+import dev.anujyadav.harmoniq.ui.components.settings.SettingsSwipeActionsLinkTile
 import dev.anujyadav.harmoniq.ui.components.settings.SettingsSliderTile
 import dev.anujyadav.harmoniq.ui.components.settings.SettingsSwitchTile
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
@@ -246,6 +247,8 @@ fun PlayerSettingsView(context: ViewContext) {
                             context.symphony.settings.gaplessPlayback.setValue(value)
                         },
                     )
+                    SettingsSideHeading(AppStrings.SwipeActions)
+                    SettingsSwipeActionsLinkTile(context)
                 }
             }
         }

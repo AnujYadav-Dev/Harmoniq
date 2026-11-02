@@ -48,6 +48,7 @@ import dev.anujyadav.harmoniq.services.groove.repositories.AlbumArtistRepository
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 
 import dev.anujyadav.harmoniq.utils.AppStrings
+import dev.anujyadav.harmoniq.ui.components.MediaLayout
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,6 +66,7 @@ fun AlbumArtistGrid(
     }
     val horizontalGridColumns by context.symphony.settings.lastUsedAlbumArtistsHorizontalGridColumns.flow.collectAsState()
     val verticalGridColumns by context.symphony.settings.lastUsedAlbumArtistsVerticalGridColumns.flow.collectAsState()
+    val layout by context.symphony.settings.lastUsedAlbumArtistsLayout.flow.collectAsState()
     val gridColumns by remember(horizontalGridColumns, verticalGridColumns) {
         derivedStateOf {
             ResponsiveGridColumns(horizontalGridColumns, verticalGridColumns)
@@ -93,6 +95,8 @@ fun AlbumArtistGrid(
                         )
                     )
                 },
+                layout = layout,
+                onLayoutChange = { context.symphony.settings.lastUsedAlbumArtistsLayout.setValue(it) },
                 onShowModifyLayout = {
                     showModifyLayoutSheet = true
                 },
@@ -111,7 +115,7 @@ fun AlbumArtistGrid(
                     content = { Text(AppStrings.DamnThisIsSoEmpty) }
                 )
 
-                else -> ResponsiveGrid(gridColumns) {
+                else -> ResponsiveGrid(gridColumns, layout) {
                     itemsIndexed(
                         sortedAlbumArtistNames,
                         key = { i, x -> "$i-$x" },
@@ -119,7 +123,10 @@ fun AlbumArtistGrid(
                     ) { _, albumArtistName ->
                         context.symphony.groove.albumArtist.get(albumArtistName)
                             ?.let { albumArtist ->
-                                AlbumArtistTile(context, albumArtist)
+                                when (layout) {
+                                    MediaLayout.Grid -> AlbumArtistTile(context, albumArtist)
+                                    MediaLayout.List -> AlbumArtistListItem(context, albumArtist)
+                                }
                             }
                     }
                 }

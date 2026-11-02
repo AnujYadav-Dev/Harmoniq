@@ -58,6 +58,8 @@ import dev.anujyadav.harmoniq.ui.view.ArtistViewRoute
 import dev.anujyadav.harmoniq.ui.view.NowPlayingControlsLayout
 import dev.anujyadav.harmoniq.ui.view.NowPlayingData
 import dev.anujyadav.harmoniq.utils.DurationUtils
+import dev.anujyadav.harmoniq.ui.components.LabeledIconButton
+import dev.anujyadav.harmoniq.utils.AppStrings
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -143,16 +145,16 @@ fun NowPlayingBodyContent(context: ViewContext, data: NowPlayingData) {
                     }
 
                     var showOptionsMenu by remember { mutableStateOf(false) }
-                    IconButton(
+                    LabeledIconButton(
+                        icon = Icons.Filled.MoreVert,
+                        label = AppStrings.MoreOptions,
                         onClick = {
                             showOptionsMenu = !showOptionsMenu
-                        }
+                        },
                     ) {
-                        Icon(Icons.Filled.MoreVert, null)
                         SongDropdownMenu(
                             context,
                             song,
-                            isFavorite = isFavorite,
                             expanded = showOptionsMenu,
                             onDismissRequest = {
                                 showOptionsMenu = false
@@ -462,6 +464,10 @@ private fun NowPlayingPlayPauseButton(
                 !isPlaying -> Icons.Filled.PlayArrow
                 else -> Icons.Filled.Pause
             },
+            label = when {
+                !isPlaying -> AppStrings.Play
+                else -> AppStrings.Pause
+            },
             onClick = {
                 context.symphony.radio.shorty.playPause()
             }
@@ -479,6 +485,7 @@ private fun NowPlayingSkipPreviousButton(
         NowPlayingControlButton(
             style = style,
             icon = Icons.Filled.SkipPrevious,
+            label = AppStrings.Previous,
             onClick = {
                 context.symphony.radio.shorty.previous()
             }
@@ -496,6 +503,7 @@ private fun NowPlayingSkipNextButton(
         NowPlayingControlButton(
             style = style,
             icon = Icons.Filled.SkipNext,
+            label = AppStrings.Next,
             onClick = {
                 context.symphony.radio.shorty.skip()
             }
@@ -513,6 +521,7 @@ private fun NowPlayingFastRewindButton(
         NowPlayingControlButton(
             style = style,
             icon = Icons.Filled.FastRewind,
+            label = AppStrings.Rewind,
             onClick = {
                 context.symphony.radio.shorty
                     .seekFromCurrent(-seekBackDuration)
@@ -531,6 +540,7 @@ private fun NowPlayingFastForwardButton(
         NowPlayingControlButton(
             style = style,
             icon = Icons.Filled.FastForward,
+            label = AppStrings.FastForward,
             onClick = {
                 context.symphony.radio.shorty
                     .seekFromCurrent(seekForwardDuration)
@@ -559,6 +569,7 @@ private data class NowPlayingControlButtonStyle(
 private fun NowPlayingControlButton(
     style: NowPlayingControlButtonStyle,
     icon: ImageVector,
+    label: String,
     onClick: () -> Unit,
 ) {
     val backgroundColor = when (style.color) {
@@ -575,15 +586,12 @@ private fun NowPlayingControlButton(
         NowPlayingControlButtonSize.Large -> 32.dp
     }
 
-    IconButton(
+    LabeledIconButton(
+        icon = icon,
+        label = label,
         modifier = Modifier.background(backgroundColor, CircleShape),
+        iconModifier = Modifier.size(iconSize),
+        tint = contentColor,
         onClick = onClick,
-    ) {
-        Icon(
-            icon,
-            null,
-            tint = contentColor,
-            modifier = Modifier.size(iconSize),
-        )
-    }
+    )
 }

@@ -57,13 +57,34 @@ import dev.anujyadav.harmoniq.ui.view.AlbumArtistViewRoute
 import dev.anujyadav.harmoniq.ui.view.AlbumViewRoute
 import dev.anujyadav.harmoniq.ui.view.ArtistViewRoute
 import dev.anujyadav.harmoniq.ui.view.PlaylistViewRoute
+import dev.anujyadav.harmoniq.ui.view.navigation.LibraryPill
+import dev.anujyadav.harmoniq.ui.view.navigation.navigateToLibraryPill
+import dev.anujyadav.harmoniq.ui.components.SeeAllButton
 import dev.anujyadav.harmoniq.services.groove.Playlist
 import dev.anujyadav.harmoniq.utils.AppStrings
 import dev.anujyadav.harmoniq.utils.randomSubList
 import dev.anujyadav.harmoniq.utils.runIfOrDefault
 import dev.anujyadav.harmoniq.utils.subListNonStrict
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import dev.anujyadav.harmoniq.services.groove.SongSuggestions
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import dev.anujyadav.harmoniq.ui.components.LabeledIconButton
+import dev.anujyadav.harmoniq.ui.components.MediaLayout
+import dev.anujyadav.harmoniq.ui.components.MediaLayoutToggle
+import dev.anujyadav.harmoniq.ui.components.SongCard
 
 enum class ForYou(val label: (context: ViewContext) -> String) {
+    Songs(label = { AppStrings.SuggestedSongs }),
     Albums(label = { AppStrings.SuggestedAlbums }),
     Artists(label = { AppStrings.SuggestedArtists }),
     AlbumArtists(label = { AppStrings.SuggestedAlbumArtists })
@@ -80,7 +101,6 @@ fun ForYouView(context: ViewContext) {
     val albumIds by context.symphony.groove.album.all.collectAsState()
     val artistNames by context.symphony.groove.artist.all.collectAsState()
     val songIds by context.symphony.groove.song.all.collectAsState()
-    val playlistIds by context.symphony.groove.playlist.all.collectAsState()
     val sortBy by context.symphony.settings.lastUsedSongsSortBy.flow.collectAsState()
     val sortReverse by context.symphony.settings.lastUsedSongsSortReverse.flow.collectAsState()
 
@@ -125,22 +145,12 @@ fun ForYouView(context: ViewContext) {
                     }
                 }
             }
-            val recentPlaylists by remember(playlistIds) {
-                derivedStateOf {
-                    val allPlaylists = context.symphony.groove.playlist.get(playlistIds.toList())
-                    val favorites = allPlaylists.find { context.symphony.groove.playlist.isFavoritesPlaylist(it) }
-                    val userPlaylists = allPlaylists.filter { !context.symphony.groove.playlist.isBuiltInPlaylist(it) }
-                        .sortedByDescending { it.id.substringBefore('.').toLongOrNull() ?: 0L }
-                        .take(4)
-                    Pair(favorites, userPlaylists)
-                }
-            }
+            val homePlaylists = rememberHomePlaylists(context)
 
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 PlaylistShortcutRow(
                     context = context,
-                    playlists = recentPlaylists.second,
-                    favoritesPlaylist = recentPlaylists.first,
+                    playlists = homePlaylists,
                 )
 
                 Row(modifier = Modifier.padding(20.dp, 0.dp)) {
@@ -178,117 +188,20 @@ fun ForYouView(context: ViewContext) {
                     Text(AppStrings.RecentlyAddedSongs)
                 }
                 Spacer(modifier = Modifier.height(12.dp))
-                when {
-                    songsIsUpdating -> SixGridLoading()
-                    recentlyAddedSongs.isEmpty() -> SixGridEmpty(context)
-                    else -> BoxWithConstraints {
-                        val tileWidth = this@BoxWithConstraints.maxWidth.times(0.7f)
-                        Row(
-                            modifier = Modifier.horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Spacer(modifier = Modifier.width(12.dp))
-                            recentlyAddedSongs.subListNonStrict(5).forEachIndexed { i, songId ->
-                                val tileHeight = 96.dp
-                                val backgroundColor = MaterialTheme.colorScheme.surface
-                                val song = context.symphony.groove.song.get(songId)
-                                    ?: return@forEachIndexed
-
-                                ElevatedCard(
-                                    modifier = Modifier
-                                        .width(tileWidth)
-                                        .height(tileHeight),
-                                    onClick = {
-                                        context.symphony.radio.shorty.playQueue(
-                                            recentlyAddedSongs,
-                                            options = Radio.PlayOptions(index = i),
-                                        )
-                                    }
-                                ) {
-                                    Box {
-                                        AsyncImage(
-                                            song.createArtworkImageRequest(context.symphony)
-                                                .build(),
-                                            null,
-                                            contentScale = ContentScale.FillWidth,
-                                            modifier = Modifier.matchParentSize(),
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .matchParentSize()
-                                                .background(
-                                                    Brush.horizontalGradient(
-                                                        colors = listOf(
-                                                            backgroundColor.copy(alpha = 0.2f),
-                                                            backgroundColor.copy(alpha = 0.7f),
-                                                            backgroundColor.copy(alpha = 0.8f),
-                                                        ),
-                                                    )
-                                                )
-                                        )
-                                        Row(modifier = Modifier.padding(8.dp)) {
-                                            Box {
-                                                AsyncImage(
-                                                    song.createArtworkImageRequest(context.symphony)
-                                                        .build(),
-                                                    null,
-                                                    contentScale = ContentScale.Crop,
-                                                    modifier = Modifier
-                                                        .aspectRatio(1f)
-                                                        .fillMaxHeight()
-                                                        .clip(RoundedCornerShape(4.dp)),
-                                                )
-                                                Box(
-                                                    modifier = Modifier.matchParentSize(),
-                                                    contentAlignment = Alignment.Center,
-                                                ) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .background(
-                                                                backgroundColor.copy(alpha = 0.25f),
-                                                                CircleShape,
-                                                            )
-                                                            .padding(1.dp)
-                                                    ) {
-                                                        Icon(
-                                                            Icons.Filled.PlayArrow,
-                                                            null,
-                                                            modifier = Modifier.size(20.dp),
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                            Spacer(modifier = Modifier.width(16.dp))
-                                            Column(
-                                                modifier = Modifier.fillMaxSize(),
-                                                verticalArrangement = Arrangement.Center,
-                                            ) {
-                                                Text(
-                                                    song.title,
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    maxLines = 2,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                )
-                                                if (song.artists.isNotEmpty()) {
-                                                    Text(
-                                                        song.artists.joinToString(),
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        maxLines = 2,
-                                                        overflow = TextOverflow.Ellipsis,
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                        }
-                    }
-                }
+                StatedSongShortcutRow(
+                    context,
+                    isLoading = songsIsUpdating,
+                    songIds = recentlyAddedSongs,
+                )
                 val contents by context.symphony.settings.forYouContents.flow.collectAsState()
                 contents.forEach {
                     when (it) {
+                        ForYou.Songs -> SuggestedSongs(
+                            context,
+                            isLoading = songsIsUpdating,
+                            songIds = songIds.toList(),
+                        )
+
                         ForYou.Albums -> SuggestedAlbums(
                             context,
                             isLoading = albumsIsUpdating,
@@ -324,6 +237,129 @@ fun ForYouView(context: ViewContext) {
             },
             content = { Text(AppStrings.DamnThisIsSoEmpty) },
         )
+    }
+}
+
+// how many songs a horizontally scrolling song row shows
+private const val SONG_SHORTCUT_ROW_LIMIT = 5
+
+/**
+ * A horizontally scrolling row of song cards, tapping one plays [songIds] from it.
+ */
+@Composable
+private fun StatedSongShortcutRow(
+    context: ViewContext,
+    isLoading: Boolean,
+    songIds: List<String>,
+    limit: Int = SONG_SHORTCUT_ROW_LIMIT,
+) {
+    when {
+        isLoading -> SixGridLoading()
+        songIds.isEmpty() -> SixGridEmpty(context)
+        else -> BoxWithConstraints {
+            val tileWidth = this@BoxWithConstraints.maxWidth.times(0.7f)
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Spacer(modifier = Modifier.width(12.dp))
+                songIds.subListNonStrict(limit).forEachIndexed { i, songId ->
+                    val tileHeight = 96.dp
+                    val backgroundColor = MaterialTheme.colorScheme.surface
+                    val song = context.symphony.groove.song.get(songId)
+                        ?: return@forEachIndexed
+
+                    ElevatedCard(
+                        modifier = Modifier
+                            .width(tileWidth)
+                            .height(tileHeight),
+                        onClick = {
+                            context.symphony.radio.shorty.playQueue(
+                                songIds,
+                                options = Radio.PlayOptions(index = i),
+                            )
+                        }
+                    ) {
+                        Box {
+                            AsyncImage(
+                                song.createArtworkImageRequest(context.symphony)
+                                    .build(),
+                                null,
+                                contentScale = ContentScale.FillWidth,
+                                modifier = Modifier.matchParentSize(),
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            colors = listOf(
+                                                backgroundColor.copy(alpha = 0.2f),
+                                                backgroundColor.copy(alpha = 0.7f),
+                                                backgroundColor.copy(alpha = 0.8f),
+                                            ),
+                                        )
+                                    )
+                            )
+                            Row(modifier = Modifier.padding(8.dp)) {
+                                Box {
+                                    AsyncImage(
+                                        song.createArtworkImageRequest(context.symphony)
+                                            .build(),
+                                        null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .aspectRatio(1f)
+                                            .fillMaxHeight()
+                                            .clip(RoundedCornerShape(4.dp)),
+                                    )
+                                    Box(
+                                        modifier = Modifier.matchParentSize(),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .background(
+                                                    backgroundColor.copy(alpha = 0.25f),
+                                                    CircleShape,
+                                                )
+                                                .padding(1.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Filled.PlayArrow,
+                                                null,
+                                                modifier = Modifier.size(20.dp),
+                                            )
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column(
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.Center,
+                                ) {
+                                    Text(
+                                        song.title,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    if (song.artists.isNotEmpty()) {
+                                        Text(
+                                            song.artists.joinToString(),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+            }
+        }
     }
 }
 
@@ -439,6 +475,145 @@ private fun <T> SixGrid(
             }
         }
     }
+}
+
+/**
+ * Songs picked by [SongSuggestions], with category chips to steer them.
+ */
+@Composable
+private fun SuggestedSongs(
+    context: ViewContext,
+    isLoading: Boolean,
+    songIds: List<String>,
+) {
+    val suggestions = context.symphony.groove.suggestions
+    val categoryKey by context.symphony.settings.suggestedSongsCategory.flow.collectAsState()
+    val category = SongSuggestions.Category.fromKey(categoryKey) ?: SongSuggestions.Category.ForYou
+    var refreshCount by remember { mutableIntStateOf(0) }
+    var genres by remember { mutableStateOf(emptyList<String>()) }
+    var suggestedSongIds by remember { mutableStateOf<List<String>?>(null) }
+    val layout by context.symphony.settings.suggestedSongsLayout.flow.collectAsState()
+    val selectCategory = { value: SongSuggestions.Category ->
+        context.symphony.settings.suggestedSongsCategory.setValue(value.key)
+    }
+
+    LaunchedEffect(isLoading, songIds, category, refreshCount) {
+        if (isLoading) {
+            return@LaunchedEffect
+        }
+        // scoring goes through the whole library, keep it off the main thread
+        val (topGenres, picked) = withContext(Dispatchers.Default) {
+            suggestions.topGenres() to suggestions.suggest(category)
+        }
+        genres = topGenres
+        suggestedSongIds = picked
+        // a saved genre that no longer has songs falls back to the default
+        if (category is SongSuggestions.Category.Genre && picked.isEmpty()) {
+            selectCategory(SongSuggestions.Category.ForYou)
+        }
+    }
+
+    val categories = buildList {
+        add(SongSuggestions.Category.ForYou)
+        add(SongSuggestions.Category.Rediscover)
+        genres.forEach { add(SongSuggestions.Category.Genre(it)) }
+        if (category is SongSuggestions.Category.Genre && !genres.contains(category.name)) {
+            add(category)
+        }
+    }
+
+    Spacer(modifier = Modifier.height(24.dp))
+    Row(
+        modifier = Modifier.padding(end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(modifier = Modifier.weight(1f)) {
+            SideHeading {
+                Text(AppStrings.SuggestedSongs)
+            }
+        }
+        MediaLayoutToggle(
+            layout = layout,
+            onLayoutChange = { context.symphony.settings.suggestedSongsLayout.setValue(it) },
+        )
+        LabeledIconButton(
+            icon = Icons.Filled.Refresh,
+            label = AppStrings.Refresh,
+            enabled = !isLoading,
+            onClick = { refreshCount++ },
+        )
+        LabeledIconButton(
+            icon = Icons.Filled.PlayArrow,
+            label = AppStrings.PlayAll,
+            enabled = !suggestedSongIds.isNullOrEmpty(),
+            onClick = {
+                suggestedSongIds?.let { context.symphony.radio.shorty.playQueue(it) }
+            },
+        )
+    }
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items(categories, key = { it.key }) {
+            FilterChip(
+                selected = it == category,
+                onClick = { selectCategory(it) },
+                label = { Text(it.label()) },
+            )
+        }
+    }
+    Spacer(modifier = Modifier.height(8.dp))
+    when (layout) {
+        MediaLayout.Grid -> StatedSongShortcutRow(
+            context,
+            isLoading = isLoading || suggestedSongIds == null,
+            songIds = suggestedSongIds ?: emptyList(),
+            limit = SongSuggestions.SUGGESTIONS_LIMIT,
+        )
+
+        MediaLayout.List -> StatedSongRows(
+            context,
+            isLoading = isLoading || suggestedSongIds == null,
+            songIds = suggestedSongIds ?: emptyList(),
+        )
+    }
+}
+
+// how many suggestions the list layout shows, "play all" still plays every one
+private const val SUGGESTED_SONGS_LIST_LIMIT = 5
+
+/**
+ * The first few [songIds] as regular song rows, tapping one plays [songIds] from it.
+ */
+@Composable
+private fun StatedSongRows(
+    context: ViewContext,
+    isLoading: Boolean,
+    songIds: List<String>,
+) {
+    when {
+        isLoading -> SixGridLoading()
+        songIds.isEmpty() -> SixGridEmpty(context)
+        else -> Column(modifier = Modifier.padding(horizontal = 8.dp)) {
+            songIds.subListNonStrict(SUGGESTED_SONGS_LIST_LIMIT).forEachIndexed { i, songId ->
+                context.symphony.groove.song.get(songId)?.let { song ->
+                    SongCard(context, song) {
+                        context.symphony.radio.shorty.playQueue(
+                            songIds,
+                            options = Radio.PlayOptions(index = i),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun SongSuggestions.Category.label() = when (this) {
+    SongSuggestions.Category.ForYou -> AppStrings.ForYou
+    SongSuggestions.Category.Rediscover -> AppStrings.Rediscover
+    is SongSuggestions.Category.Genre -> name
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -558,10 +733,8 @@ private fun SuggestedAlbumArtists(
 private fun PlaylistShortcutRow(
     context: ViewContext,
     playlists: List<Playlist>,
-    favoritesPlaylist: Playlist?,
 ) {
-    val items = listOfNotNull(favoritesPlaylist) + playlists
-    if (items.isEmpty()) return
+    if (playlists.isEmpty()) return
 
     Column(
         modifier = Modifier
@@ -570,7 +743,7 @@ private fun PlaylistShortcutRow(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         val tileHeight = 56.dp
-        items.chunked(2).forEach { rowItems ->
+        playlists.chunked(2).forEach { rowItems ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -588,6 +761,9 @@ private fun PlaylistShortcutRow(
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }
+        }
+        SeeAllButton(AppStrings.SeeAllPlaylists) {
+            context.navigateToLibraryPill(LibraryPill.Playlists)
         }
     }
 }
@@ -626,5 +802,25 @@ private fun PlaylistShortcutCard(
                 modifier = Modifier.padding(end = 8.dp)
             )
         }
+    }
+}
+
+/**
+ * Playlist shortcuts configured in settings, recomputed whenever playlists or the
+ * related settings change. Shared by the home screen and the library.
+ */
+@Composable
+fun rememberHomePlaylists(context: ViewContext): List<Playlist> {
+    val settings = context.symphony.settings
+    val playlistIds by context.symphony.groove.playlist.all.collectAsState()
+    val updateId by context.symphony.groove.playlist.updateId.collectAsState()
+    val sortBy by settings.homePlaylistsSortBy.flow.collectAsState()
+    val limit by settings.homePlaylistsLimit.flow.collectAsState()
+    val showFavorites by settings.homeShowFavorites.flow.collectAsState()
+    val selectedIds by settings.homePlaylistIds.flow.collectAsState()
+    val lastPlayed by settings.playlistLastPlayed.flow.collectAsState()
+
+    return remember(playlistIds, updateId, sortBy, limit, showFavorites, selectedIds, lastPlayed) {
+        context.symphony.groove.playlist.getHomePlaylists()
     }
 }

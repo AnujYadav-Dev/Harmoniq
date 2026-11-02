@@ -86,6 +86,16 @@ class SongRepository(private val symphony: Symphony) {
     fun search(songIds: List<String>, terms: String, limit: Int = 7) = searcher
         .search(terms, songIds, maxLength = limit)
 
+    /**
+     * Keeps the songs matching [terms], in their given order.
+     */
+    fun filter(songIds: List<String>, terms: String): List<String> {
+        if (terms.isBlank()) {
+            return songIds
+        }
+        return songIds.filter { searcher.matches(terms, it, FILTER_MIN_SCORE) }
+    }
+
     fun sort(songIds: List<String>, by: SortBy, reverse: Boolean): List<String> {
         val sensitive = symphony.settings.caseSensitiveSorting.value
         val sorted = when (by) {
@@ -146,5 +156,10 @@ class SongRepository(private val symphony: Symphony) {
             Logger.error("LyricsRepository", "fetch lyrics failed", err)
         }
         return null
+    }
+
+    companion object {
+        // minimum fuzzy match (0 - 100) for a song to be kept by [filter]
+        const val FILTER_MIN_SCORE = 80
     }
 }

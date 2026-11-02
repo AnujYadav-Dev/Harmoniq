@@ -33,6 +33,7 @@ import dev.anujyadav.harmoniq.ui.components.TopAppBarMinimalTitle
 import dev.anujyadav.harmoniq.ui.components.settings.SettingsFloatInputTile
 import dev.anujyadav.harmoniq.ui.components.settings.SettingsOptionTile
 import dev.anujyadav.harmoniq.ui.components.settings.SettingsSideHeading
+import dev.anujyadav.harmoniq.ui.components.settings.SettingsHomePlaylistsSection
 import dev.anujyadav.harmoniq.ui.components.settings.SettingsSwitchTile
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 import dev.anujyadav.harmoniq.ui.theme.PrimaryThemeColor
@@ -232,6 +233,7 @@ fun AppearanceSettingsView(context: ViewContext) {
                             context.symphony.settings.randomizePrimaryColor.setValue(value)
                         }
                     )
+                    SettingsHomePlaylistsSection(context)
                 }
             }
         }

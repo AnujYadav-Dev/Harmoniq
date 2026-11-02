@@ -10,6 +10,7 @@ import dev.anujyadav.harmoniq.utils.DocumentFileX
 import dev.anujyadav.harmoniq.utils.SimplePath
 import kotlin.io.path.Path
 import kotlin.io.path.nameWithoutExtension
+import coil.request.ImageRequest
 
 @Immutable
 @Entity("playlists")
@@ -26,8 +27,18 @@ data class Playlist(
     val isNotLocal get() = uri == null
 
     fun createArtworkImageRequest(symphony: Symphony) =
-        getSongIds(symphony).firstOrNull()
-            ?.let { symphony.groove.song.get(it)?.createArtworkImageRequest(symphony) }
+        symphony.groove.playlist.covers.get(id)
+            ?.let { cover ->
+                // keyed by modification time, so a replaced cover is not served from cache
+                val cacheKey = "playlist-cover:$id:${cover.lastModified()}"
+                ImageRequest.Builder(symphony.applicationContext)
+                    .data(cover)
+                    .memoryCacheKey(cacheKey)
+                    .diskCacheKey(cacheKey)
+                    .crossfade(true)
+            }
+            ?: getSongIds(symphony).firstOrNull()
+                ?.let { symphony.groove.song.get(it)?.createArtworkImageRequest(symphony) }
             ?: Assets.createPlaceholderImageRequest(symphony)
 
     fun getSongIds(symphony: Symphony): List<String> {

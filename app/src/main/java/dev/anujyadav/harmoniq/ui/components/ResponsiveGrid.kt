@@ -74,13 +74,18 @@ data class ResponsiveGridColumns(val horizontal: Int, val vertical: Int) {
 @Composable
 fun ResponsiveGrid(
     columns: ResponsiveGridColumns,
+    layout: MediaLayout = MediaLayout.Grid,
     content: LazyGridScope.(ResponsiveGridData) -> Unit,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val effectiveColumn = columns.calculateColumns(
-            this@BoxWithConstraints.maxHeight.value.toInt(),
-            this@BoxWithConstraints.maxWidth.value.toInt(),
-        )
+        val effectiveColumn = when (layout) {
+            MediaLayout.Grid -> columns.calculateColumns(
+                this@BoxWithConstraints.maxHeight.value.toInt(),
+                this@BoxWithConstraints.maxWidth.value.toInt(),
+            )
+
+            MediaLayout.List -> 1
+        }
         val gridState = rememberLazyGridState()
         val responsiveGridData = ResponsiveGridData(columnsCount = effectiveColumn)
 

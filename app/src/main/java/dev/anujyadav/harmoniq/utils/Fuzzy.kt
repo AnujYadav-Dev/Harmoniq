@@ -43,6 +43,17 @@ class FuzzySearcher<T>(val options: List<FuzzySearchOption<T>>) {
         }
     }
 
+    /**
+     * Whether any option matches [terms] with at least [minScore] (0 - 100),
+     * ignoring option weights so the threshold means the same for every field.
+     */
+    fun matches(terms: String, entity: T, minScore: Int): Boolean {
+        val comparator = FuzzySearchComparator(terms)
+        return options.any { option ->
+            (option.match.invoke(comparator, entity) ?: 0) >= minScore
+        }
+    }
+
     private fun compare(terms: String, entity: T): FuzzyResultEntity<T> {
         var score = 0
         val comparator = FuzzySearchComparator(terms)

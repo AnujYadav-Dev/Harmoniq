@@ -90,6 +90,27 @@ class RadioQueue(private val symphony: Symphony) {
         }
     }
 
+    fun move(from: Int, to: Int) {
+        if (from == to || !hasSongAt(from) || !hasSongAt(to)) {
+            return
+        }
+        currentQueue.add(to, currentQueue.removeAt(from))
+        // the original order only mirrors the visible one while unshuffled
+        if (!currentShuffleMode) {
+            originalQueue.add(to, originalQueue.removeAt(from))
+        }
+        val nextSongIndex = when (currentSongIndex) {
+            from -> to
+            in (from + 1)..to -> currentSongIndex - 1
+            in to until from -> currentSongIndex + 1
+            else -> currentSongIndex
+        }
+        if (nextSongIndex != currentSongIndex) {
+            currentSongIndex = nextSongIndex
+        }
+        symphony.radio.onUpdate.dispatch(Radio.Events.Queue.Modified)
+    }
+
     fun remove(indices: List<Int>) {
         var deflection = 0
         var currentSongRemoved = false

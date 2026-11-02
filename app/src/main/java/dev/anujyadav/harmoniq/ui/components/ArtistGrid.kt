@@ -48,6 +48,7 @@ import dev.anujyadav.harmoniq.services.groove.repositories.ArtistRepository
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 
 import dev.anujyadav.harmoniq.utils.AppStrings
+import dev.anujyadav.harmoniq.ui.components.MediaLayout
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,6 +66,7 @@ fun ArtistGrid(
     }
     val horizontalGridColumns by context.symphony.settings.lastUsedArtistsHorizontalGridColumns.flow.collectAsState()
     val verticalGridColumns by context.symphony.settings.lastUsedArtistsVerticalGridColumns.flow.collectAsState()
+    val layout by context.symphony.settings.lastUsedArtistsLayout.flow.collectAsState()
     val gridColumns by remember(horizontalGridColumns, verticalGridColumns) {
         derivedStateOf {
             ResponsiveGridColumns(horizontalGridColumns, verticalGridColumns)
@@ -89,6 +91,8 @@ fun ArtistGrid(
                 label = {
                     Text(AppStrings.XArtists((artistsCount ?: artistName.size).toString()))
                 },
+                layout = layout,
+                onLayoutChange = { context.symphony.settings.lastUsedArtistsLayout.setValue(it) },
                 onShowModifyLayout = {
                     showModifyLayoutSheet = true
                 },
@@ -107,14 +111,17 @@ fun ArtistGrid(
                     content = { Text(AppStrings.DamnThisIsSoEmpty) }
                 )
 
-                else -> ResponsiveGrid(gridColumns) {
+                else -> ResponsiveGrid(gridColumns, layout) {
                     itemsIndexed(
                         sortedArtistNames,
                         key = { i, x -> "$i-$x" },
                         contentType = { _, _ -> Groove.Kind.ARTIST }
                     ) { _, artistName ->
                         context.symphony.groove.artist.get(artistName)?.let { artist ->
-                            ArtistTile(context, artist)
+                            when (layout) {
+                                MediaLayout.Grid -> ArtistTile(context, artist)
+                                MediaLayout.List -> ArtistListItem(context, artist)
+                            }
                         }
                     }
                 }

@@ -34,6 +34,7 @@ class Groove(private val symphony: Symphony) : Symphony.Hooks {
     val albumArtist = AlbumArtistRepository(symphony)
     val genre = GenreRepository(symphony)
     val playlist = PlaylistRepository(symphony)
+    val suggestions = SongSuggestions(symphony)
 
     private suspend fun fetch() {
         coroutineScope.launch {

@@ -51,6 +51,8 @@ import dev.anujyadav.harmoniq.utils.AppStrings
 import dev.anujyadav.harmoniq.utils.SimpleFileSystem
 import dev.anujyadav.harmoniq.utils.StringListUtils
 import java.util.Stack
+import dev.anujyadav.harmoniq.ui.components.MediaLayout
+import dev.anujyadav.harmoniq.ui.components.GenericGrooveCard
 
 @Composable
 fun FoldersView(context: ViewContext) {
@@ -163,6 +165,7 @@ private fun FoldersGrid(
     }
     val horizontalGridColumns by context.symphony.settings.lastUsedFoldersHorizontalGridColumns.flow.collectAsState()
     val verticalGridColumns by context.symphony.settings.lastUsedFoldersVerticalGridColumns.flow.collectAsState()
+    val layout by context.symphony.settings.lastUsedFoldersLayout.flow.collectAsState()
     val gridColumns by remember(horizontalGridColumns, verticalGridColumns) {
         derivedStateOf {
             ResponsiveGridColumns(horizontalGridColumns, verticalGridColumns)
@@ -187,6 +190,8 @@ private fun FoldersGrid(
                 label = {
                     Text(AppStrings.XFolders(folders.size.toString()))
                 },
+                layout = layout,
+                onLayoutChange = { context.symphony.settings.lastUsedFoldersLayout.setValue(it) },
                 onShowModifyLayout = {
                     showModifyLayoutSheet = true
                 }
@@ -205,7 +210,7 @@ private fun FoldersGrid(
                     content = { Text(AppStrings.DamnThisIsSoEmpty) }
                 )
 
-                else -> ResponsiveGrid(gridColumns) {
+                else -> ResponsiveGrid(gridColumns, layout) {
                     itemsIndexed(
                         sortedFolderNames,
                         key = { i, x -> "$i-$x" },
@@ -214,6 +219,7 @@ private fun FoldersGrid(
                         folders[folderName]?.let { folder ->
                             FolderTile(
                                 context, folder = folder,
+                                layout = layout,
                                 onClick = { onClick(folder) },
                             )
                         }
@@ -246,86 +252,109 @@ private fun FoldersGrid(
 private fun FolderTile(
     context: ViewContext,
     folder: SimpleFileSystem.Folder,
+    layout: MediaLayout,
     onClick: () -> Unit,
 ) {
-    SquareGrooveTile(
-        image = folder.createArtworkImageRequest(context).build(),
-        options = { expanded, onDismissRequest ->
-            var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+    val image = folder.createArtworkImageRequest(context).build()
+    val options = @Composable { expanded: Boolean, onDismissRequest: () -> Unit ->
+        FolderOptionsMenu(context, folder, expanded, onDismissRequest)
+    }
 
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = onDismissRequest
-            ) {
-                DropdownMenuItem(
-                    leadingIcon = {
-                        Icon(Icons.AutoMirrored.Filled.PlaylistPlay, null)
-                    },
-                    text = {
-                        Text(AppStrings.ShufflePlay)
-                    },
-                    onClick = {
-                        onDismissRequest()
-                        context.symphony.radio.shorty.playQueue(
-                            folder.getSortedSongIds(context),
-                            shuffle = true,
-                        )
-                    }
+    when (layout) {
+        MediaLayout.Grid -> SquareGrooveTile(
+            image = image,
+            options = options,
+            content = {
+                Text(
+                    folder.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                DropdownMenuItem(
-                    leadingIcon = {
-                        Icon(Icons.AutoMirrored.Filled.PlaylistPlay, null)
-                    },
-                    text = {
-                        Text(AppStrings.PlayNext)
-                    },
-                    onClick = {
-                        onDismissRequest()
-                        context.symphony.radio.queue.add(
-                            folder.getSortedSongIds(context),
-                            context.symphony.radio.queue.currentSongIndex + 1
-                        )
-                    }
-                )
-                DropdownMenuItem(
-                    leadingIcon = {
-                        Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null)
-                    },
-                    text = {
-                        Text(AppStrings.AddToPlaylist)
-                    },
-                    onClick = {
-                        onDismissRequest()
-                        showAddToPlaylistDialog = true
-                    }
+            },
+            onPlay = {
+                val sortedSongIds = folder.getSortedSongIds(context)
+                context.symphony.radio.shorty.playQueue(sortedSongIds)
+            },
+            onClick = onClick,
+        )
+
+        MediaLayout.List -> GenericGrooveCard(
+            image = image,
+            title = { Text(folder.name) },
+            options = options,
+            onClick = onClick,
+        )
+    }
+}
+
+@Composable
+private fun FolderOptionsMenu(
+    context: ViewContext,
+    folder: SimpleFileSystem.Folder,
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+) {
+    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest
+    ) {
+        DropdownMenuItem(
+            leadingIcon = {
+                Icon(Icons.AutoMirrored.Filled.PlaylistPlay, null)
+            },
+            text = {
+                Text(AppStrings.ShufflePlay)
+            },
+            onClick = {
+                onDismissRequest()
+                context.symphony.radio.shorty.playQueue(
+                    folder.getSortedSongIds(context),
+                    shuffle = true,
                 )
             }
-
-            if (showAddToPlaylistDialog) {
-                AddToPlaylistDialog(
-                    context,
-                    songIds = folder.getSortedSongIds(context),
-                    onDismissRequest = {
-                        showAddToPlaylistDialog = false
-                    }
+        )
+        DropdownMenuItem(
+            leadingIcon = {
+                Icon(Icons.AutoMirrored.Filled.PlaylistPlay, null)
+            },
+            text = {
+                Text(AppStrings.PlayNext)
+            },
+            onClick = {
+                onDismissRequest()
+                context.symphony.radio.queue.add(
+                    folder.getSortedSongIds(context),
+                    context.symphony.radio.queue.currentSongIndex + 1
                 )
             }
-        },
-        content = {
-            Text(
-                folder.name,
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
-        onPlay = {
-            val sortedSongIds = folder.getSortedSongIds(context)
-            context.symphony.radio.shorty.playQueue(sortedSongIds)
-        },
-        onClick = onClick,
-    )
+        )
+        DropdownMenuItem(
+            leadingIcon = {
+                Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null)
+            },
+            text = {
+                Text(AppStrings.AddToPlaylist)
+            },
+            onClick = {
+                onDismissRequest()
+                showAddToPlaylistDialog = true
+            }
+        )
+    }
+
+    if (showAddToPlaylistDialog) {
+        AddToPlaylistDialog(
+            context,
+            songIds = folder.getSortedSongIds(context),
+            onDismissRequest = {
+                showAddToPlaylistDialog = false
+            }
+        )
+    }
 }
 
 private fun SimpleFileSystem.Folder.createArtworkImageRequest(context: ViewContext) =

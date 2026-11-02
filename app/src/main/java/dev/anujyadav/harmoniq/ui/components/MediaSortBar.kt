@@ -36,6 +36,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
+import androidx.compose.material.icons.filled.ViewColumn
+import dev.anujyadav.harmoniq.utils.AppStrings
 
 @Composable
 fun <T : Enum<T>> MediaSortBar(
@@ -48,6 +50,9 @@ fun <T : Enum<T>> MediaSortBar(
     label: @Composable () -> Unit,
     onShufflePlay: (() -> Unit)? = null,
     onShowModifyLayout: (() -> Unit)? = null,
+    // shows a grid/list switch when set
+    layout: MediaLayout? = null,
+    onLayoutChange: ((MediaLayout) -> Unit)? = null,
 ) {
     var showDropdown by remember { mutableStateOf(false) }
     val currentTextStyle = MaterialTheme.typography.bodySmall.run {
@@ -69,19 +74,16 @@ fun <T : Enum<T>> MediaSortBar(
     ) {
         Row {
             Spacer(modifier = Modifier.width(8.dp))
-            IconButton(
+            LabeledIconButton(
+                icon = when {
+                    reverse -> Icons.Filled.ArrowDownward
+                    else -> Icons.Filled.ArrowUpward
+                },
+                label = AppStrings.ReverseSortOrder,
                 colors = iconButtonStyle,
-                onClick = { onReverseChange(!reverse) }
-            ) {
-                Icon(
-                    when {
-                        reverse -> Icons.Filled.ArrowDownward
-                        else -> Icons.Filled.ArrowUpward
-                    },
-                    null,
-                    modifier = iconModifier,
-                )
-            }
+                iconModifier = iconModifier,
+                onClick = { onReverseChange(!reverse) },
+            )
             Box {
                 TextButton(
                     colors = textButtonStyle,
@@ -123,10 +125,22 @@ fun <T : Enum<T>> MediaSortBar(
                     }
                 }
             }
-            onShowModifyLayout?.let {
-                IconButton(onClick = it) {
-                    Icon(Icons.Filled.GridView, null, modifier = iconModifier)
-                }
+            if (layout != null && onLayoutChange != null) {
+                MediaLayoutToggle(
+                    layout = layout,
+                    onLayoutChange = onLayoutChange,
+                    colors = iconButtonStyle,
+                    iconModifier = iconModifier,
+                )
+            }
+            // columns only apply to the grid
+            onShowModifyLayout?.takeIf { layout != MediaLayout.List }?.let {
+                LabeledIconButton(
+                    icon = Icons.Filled.ViewColumn,
+                    label = AppStrings.GridColumns,
+                    iconModifier = iconModifier,
+                    onClick = it,
+                )
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -134,17 +148,14 @@ fun <T : Enum<T>> MediaSortBar(
                 label()
             }
             onShufflePlay?.let {
-                IconButton(
+                LabeledIconButton(
+                    icon = Icons.Filled.Shuffle,
+                    label = AppStrings.ShufflePlay,
                     modifier = Modifier.padding(4.dp, 0.dp),
                     colors = iconButtonStyle,
+                    iconModifier = iconModifier,
                     onClick = it,
-                ) {
-                    Icon(
-                        Icons.Filled.Shuffle,
-                        null,
-                        modifier = iconModifier,
-                    )
-                }
+                )
             }
             if (onShufflePlay == null) {
                 Spacer(modifier = Modifier.width(20.dp))

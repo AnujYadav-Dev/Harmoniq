@@ -14,33 +14,52 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import dev.anujyadav.harmoniq.services.groove.Playlist
+import dev.anujyadav.harmoniq.services.groove.Song
+import dev.anujyadav.harmoniq.ui.components.AdaptiveSnackbar
 import dev.anujyadav.harmoniq.ui.components.AnimatedNowPlayingBottomBar
 import dev.anujyadav.harmoniq.ui.components.IconTextBody
+import dev.anujyadav.harmoniq.ui.components.LocalUndoHost
+import dev.anujyadav.harmoniq.ui.components.MediaSortBarPlacement
+import dev.anujyadav.harmoniq.ui.components.PlaylistActions
+import dev.anujyadav.harmoniq.ui.components.PlaylistActionsHost
 import dev.anujyadav.harmoniq.ui.components.PlaylistDropdownMenu
+import dev.anujyadav.harmoniq.ui.components.PlaylistHeader
+import dev.anujyadav.harmoniq.ui.components.ProvideSwipeScope
 import dev.anujyadav.harmoniq.ui.components.SongList
 import dev.anujyadav.harmoniq.ui.components.SongListType
+import dev.anujyadav.harmoniq.ui.components.SongRemoveAction
+import dev.anujyadav.harmoniq.ui.components.SongSwipeScope
 import dev.anujyadav.harmoniq.ui.components.TopAppBarMinimalTitle
+import dev.anujyadav.harmoniq.ui.components.rememberUndoHost
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 import dev.anujyadav.harmoniq.ui.theme.ThemeColors
 import dev.anujyadav.harmoniq.utils.AppStrings
 import dev.anujyadav.harmoniq.utils.mutate
 import kotlinx.serialization.Serializable
+import androidx.activity.compose.BackHandler
+import androidx.compose.ui.platform.LocalFocusManager
+import dev.anujyadav.harmoniq.ui.components.LabeledIconButton
 
 @Serializable
 data class PlaylistViewRoute(val playlistId: String)
 
+// favorites is a playlist too, so it shares this screen (and its search)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaylistView(context: ViewContext, route: PlaylistViewRoute) {
@@ -50,120 +69,210 @@ fun PlaylistView(context: ViewContext, route: PlaylistViewRoute) {
     val playlist by remember(route.playlistId, updateId) {
         derivedStateOf { context.symphony.groove.playlist.get(route.playlistId) }
     }
-    val songIds by remember(playlist) {
-        derivedStateOf { playlist?.getSongIds(context.symphony) ?: emptyList() }
-    }
     val isViable by remember(allPlaylistIds, route.playlistId) {
         derivedStateOf { allPlaylistIds.contains(route.playlistId) }
     }
-    var showOptionsMenu by remember { mutableStateOf(false) }
-    val isFavoritesPlaylist by remember(playlist) {
-        derivedStateOf {
-            playlist?.let { context.symphony.groove.playlist.isFavoritesPlaylist(it) } == true
-        }
-    }
+    val undoHost = rememberUndoHost()
 
     val incrementUpdateCounter = {
         updateCounter = if (updateCounter > 25) 0 else updateCounter + 1
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            CenterAlignedTopAppBar(
-                navigationIcon = {
-                    IconButton(
-                        onClick = { context.navController.popBackStack() }
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
-                    }
-                },
-                title = {
-                    TopAppBarMinimalTitle {
-                        Text(
-                            AppStrings.Playlist
-                                    + (playlist?.let { " - ${it.title}" } ?: "")
+    @Composable
+    fun PlaylistScaffold(actions: PlaylistActions?, content: @Composable () -> Unit) {
+        var showOptionsMenu by remember { mutableStateOf(false) }
+
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            snackbarHost = {
+                SnackbarHost(undoHost.snackbarHostState) {
+                    AdaptiveSnackbar(it)
+                }
+            },
+            topBar = {
+                CenterAlignedTopAppBar(
+                    navigationIcon = {
+                        LabeledIconButton(
+                            icon = Icons.AutoMirrored.Filled.ArrowBack,
+                            label = AppStrings.Back,
+                            onClick = { context.navController.popBackStack() },
                         )
-                    }
-                },
-                actions = {
-                    if (isViable) {
-                        IconButton(
-                            onClick = {
-                                showOptionsMenu = true
-                            }
-                        ) {
-                            Icon(Icons.Filled.MoreVert, null)
-                            PlaylistDropdownMenu(
-                                context,
-                                playlist!!,
-                                expanded = showOptionsMenu,
-                                onSongsChanged = {
-                                    incrementUpdateCounter()
-                                },
-                                onRename = {
-                                    incrementUpdateCounter()
-                                },
-                                onDelete = {
-                                    context.navController.popBackStack()
-                                },
-                                onDismissRequest = {
-                                    showOptionsMenu = false
-                                }
+                    },
+                    title = {
+                        TopAppBarMinimalTitle {
+                            Text(
+                                AppStrings.Playlist
+                                        + (playlist?.let { " - ${it.title}" } ?: "")
                             )
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color.Transparent
-                ),
-            )
-        },
-        content = { contentPadding ->
-            Box(
-                modifier = Modifier
-                    .padding(contentPadding)
-                    .fillMaxSize()
-            ) {
-                when {
-                    isViable -> SongList(
-                        context,
-                        songIds = songIds,
-                        type = SongListType.Playlist,
-                        disableHeartIcon = isFavoritesPlaylist,
-                        trailingOptionsContent = { _, song, onDismissRequest ->
-                            playlist?.takeIf { it.isNotLocal }?.let {
-                                DropdownMenuItem(
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.Filled.DeleteForever,
-                                            null,
-                                            tint = ThemeColors.Red,
-                                        )
-                                    },
-                                    text = {
-                                        Text(AppStrings.RemoveFromPlaylist)
-                                    },
-                                    onClick = {
-                                        onDismissRequest()
-                                        context.symphony.groove.playlist.update(
-                                            it.id,
-                                            songIds.mutate { remove(song.id) },
-                                        )
+                    },
+                    actions = {
+                        actions?.let {
+                            LabeledIconButton(
+                                icon = Icons.Filled.MoreVert,
+                                label = AppStrings.MoreOptions,
+                                onClick = {
+                                    showOptionsMenu = true
+                                },
+                            ) {
+                                PlaylistDropdownMenu(
+                                    it,
+                                    expanded = showOptionsMenu,
+                                    onDismissRequest = {
+                                        showOptionsMenu = false
                                     }
                                 )
                             }
-                        },
-                    )
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = Color.Transparent
+                    ),
+                )
+            },
+            content = { contentPadding ->
+                Box(
+                    modifier = Modifier
+                        .padding(contentPadding)
+                        .fillMaxSize()
+                ) {
+                    content()
+                }
+            },
+            bottomBar = {
+                AnimatedNowPlayingBottomBar(context)
+            }
+        )
+    }
 
-                    else -> UnknownPlaylist(context, route.playlistId)
+    when (val currentPlaylist = playlist?.takeIf { isViable }) {
+        null -> PlaylistScaffold(actions = null) {
+            UnknownPlaylist(context, route.playlistId)
+        }
+
+        else -> PlaylistActionsHost(
+            context,
+            currentPlaylist,
+            onSongsChanged = {
+                incrementUpdateCounter()
+            },
+            onRename = {
+                incrementUpdateCounter()
+            },
+            onDelete = {
+                context.navController.popBackStack()
+            },
+        ) { actions ->
+            val isFavoritesPlaylist = context.symphony.groove.playlist.isFavoritesPlaylist(currentPlaylist)
+
+            CompositionLocalProvider(LocalUndoHost provides undoHost) {
+                ProvideSwipeScope(
+                    songScope = when {
+                        isFavoritesPlaylist -> SongSwipeScope.Favorites
+                        else -> SongSwipeScope.Playlist
+                    },
+                ) {
+                    PlaylistScaffold(actions) {
+                        PlaylistSongs(context, actions, isFavoritesPlaylist)
+                    }
                 }
             }
-        },
-        bottomBar = {
-            AnimatedNowPlayingBottomBar(context)
         }
+    }
+}
+
+@Composable
+private fun PlaylistSongs(
+    context: ViewContext,
+    actions: PlaylistActions,
+    isFavoritesPlaylist: Boolean,
+) {
+    val playlist = actions.playlist
+    val songIds = remember(playlist) { playlist.getSongIds(context.symphony) }
+    var searchTerms by rememberSaveable { mutableStateOf("") }
+    var isSearchActive by rememberSaveable { mutableStateOf(false) }
+    // search mode starts when the field is focused and lasts until cancelled,
+    // so closing the keyboard keeps the results in view
+    val isSearching = isSearchActive || searchTerms.isNotEmpty()
+    val focusManager = LocalFocusManager.current
+
+    BackHandler(isSearching) {
+        searchTerms = ""
+        isSearchActive = false
+        focusManager.clearFocus()
+    }
+    val removeFromPlaylist = rememberRemoveFromPlaylist(context, playlist, songIds)
+
+    SongList(
+        context,
+        songIds = songIds,
+        type = SongListType.Playlist,
+        disableHeartIcon = isFavoritesPlaylist,
+        sortBarPlacement = MediaSortBarPlacement.Inline,
+        filterTerms = searchTerms,
+        leadingContent = {
+            item {
+                PlaylistHeader(
+                    actions,
+                    songIds = songIds,
+                    searchTerms = searchTerms,
+                    onSearchTermsChange = { searchTerms = it },
+                    isSearching = isSearching,
+                    onSearchingChange = { isSearchActive = it },
+                )
+            }
+        },
+        onPlayStarted = {
+            context.symphony.groove.playlist.markPlayed(playlist.id)
+        },
+        trailingOptionsContent = { _, song, onDismissRequest ->
+            removeFromPlaylist?.let { remove ->
+                DropdownMenuItem(
+                    leadingIcon = {
+                        Icon(
+                            Icons.Filled.DeleteForever,
+                            null,
+                            tint = ThemeColors.Red,
+                        )
+                    },
+                    text = {
+                        Text(AppStrings.RemoveFromPlaylist)
+                    },
+                    onClick = {
+                        onDismissRequest()
+                        remove(song)
+                    }
+                )
+            }
+        },
+        songRemoveAction = { _, song ->
+            removeFromPlaylist?.let { remove ->
+                SongRemoveAction(
+                    label = AppStrings.RemoveFromPlaylist,
+                    onRemove = { remove(song) },
+                    // restores the exact previous order
+                    onUndo = { context.symphony.groove.playlist.update(playlist.id, songIds) },
+                )
+            }
+        },
     )
+}
+
+// local (m3u) playlists are read-only
+@Composable
+private fun rememberRemoveFromPlaylist(
+    context: ViewContext,
+    playlist: Playlist,
+    songIds: List<String>,
+): ((Song) -> Unit)? = remember(playlist, songIds) {
+    playlist.takeIf { it.isNotLocal }?.let {
+        { song ->
+            context.symphony.groove.playlist.update(
+                it.id,
+                songIds.mutate { remove(song.id) },
+            )
+        }
+    }
 }
 
 @Composable

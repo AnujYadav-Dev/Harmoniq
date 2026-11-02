@@ -51,6 +51,7 @@ import dev.anujyadav.harmoniq.services.groove.repositories.PlaylistRepository
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 
 import dev.anujyadav.harmoniq.utils.AppStrings
+import dev.anujyadav.harmoniq.ui.components.MediaLayout
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +70,7 @@ fun PlaylistGrid(
     }
     val horizontalGridColumns by context.symphony.settings.lastUsedPlaylistsHorizontalGridColumns.flow.collectAsState()
     val verticalGridColumns by context.symphony.settings.lastUsedPlaylistsVerticalGridColumns.flow.collectAsState()
+    val layout by context.symphony.settings.lastUsedPlaylistsLayout.flow.collectAsState()
     val gridColumns by remember(horizontalGridColumns, verticalGridColumns) {
         derivedStateOf {
             ResponsiveGridColumns(horizontalGridColumns, verticalGridColumns)
@@ -99,6 +101,8 @@ fun PlaylistGrid(
                             )
                         )
                     },
+                    layout = layout,
+                    onLayoutChange = { context.symphony.settings.lastUsedPlaylistsLayout.setValue(it) },
                     onShowModifyLayout = {
                         showModifyLayoutSheet = true
                     },
@@ -120,14 +124,17 @@ fun PlaylistGrid(
                     }
                 )
 
-                else -> ResponsiveGrid(gridColumns) {
+                else -> ResponsiveGrid(gridColumns, layout) {
                     itemsIndexed(
                         sortedPlaylistIds,
                         key = { i, x -> "$i-$x" },
                         contentType = { _, _ -> Groove.Kind.PLAYLIST }
                     ) { _, playlistId ->
                         context.symphony.groove.playlist.get(playlistId)?.let { playlist ->
-                            PlaylistTile(context, playlist)
+                            when (layout) {
+                                MediaLayout.Grid -> PlaylistTile(context, playlist)
+                                MediaLayout.List -> PlaylistListItem(context, playlist)
+                            }
                         }
                     }
                 }

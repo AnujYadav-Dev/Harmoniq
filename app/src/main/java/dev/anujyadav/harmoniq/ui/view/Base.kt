@@ -39,6 +39,11 @@ import dev.anujyadav.harmoniq.ui.view.settings.PlayerSettingsView
 import dev.anujyadav.harmoniq.ui.view.settings.PlayerSettingsViewRoute
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.serializer
+import dev.anujyadav.harmoniq.ui.view.settings.SwipeActionsSettingsView
+import dev.anujyadav.harmoniq.ui.view.settings.SwipeActionsSettingsViewRoute
+import dev.anujyadav.harmoniq.ui.components.ProvideSwipeScope
+import dev.anujyadav.harmoniq.ui.components.SongSwipeScope
+import dev.anujyadav.harmoniq.ui.view.navigation.LibraryPill
 
 @Composable
 fun BaseView(symphony: Symphony, activity: MainActivity) {
@@ -78,16 +83,24 @@ fun BaseView(symphony: Symphony, activity: MainActivity) {
                     QueueView(context)
                 }
                 baseComposable<ArtistViewRoute> {
-                    ArtistView(context, it.toRoute())
+                    ProvideSwipeScope(songScope = SongSwipeScope.Collections) {
+                        ArtistView(context, it.toRoute())
+                    }
                 }
                 baseComposable<AlbumViewRoute> {
-                    AlbumView(context, it.toRoute())
+                    ProvideSwipeScope(songScope = SongSwipeScope.Collections) {
+                        AlbumView(context, it.toRoute())
+                    }
                 }
                 baseComposable<AlbumArtistViewRoute> {
-                    AlbumArtistView(context, it.toRoute())
+                    ProvideSwipeScope(songScope = SongSwipeScope.Collections) {
+                        AlbumArtistView(context, it.toRoute())
+                    }
                 }
                 baseComposable<GenreViewRoute> {
-                    GenreView(context, it.toRoute())
+                    ProvideSwipeScope(songScope = SongSwipeScope.Collections) {
+                        GenreView(context, it.toRoute())
+                    }
                 }
                 baseComposable<PlaylistViewRoute> {
                     PlaylistView(context, it.toRoute())
@@ -116,33 +129,52 @@ fun BaseView(symphony: Symphony, activity: MainActivity) {
                 baseComposable<AboutSettingsViewRoute> {
                     AboutSettingsView(context)
                 }
+                baseComposable<SwipeActionsSettingsViewRoute> {
+                    SwipeActionsSettingsView(context)
+                }
                 // Full-screen library category routes
                 baseComposable<SongsFullViewRoute> {
-                    SongsFullView(context)
+                    ProvideSwipeScope(songScope = LibraryPill.Songs.songSwipeScope) {
+                        SongsFullView(context)
+                    }
                 }
                 baseComposable<AlbumsFullViewRoute> {
-                    AlbumsFullView(context)
+                    ProvideSwipeScope(songScope = LibraryPill.Albums.songSwipeScope) {
+                        AlbumsFullView(context)
+                    }
                 }
                 baseComposable<ArtistsFullViewRoute> {
-                    ArtistsFullView(context)
+                    ProvideSwipeScope(songScope = LibraryPill.Artists.songSwipeScope) {
+                        ArtistsFullView(context)
+                    }
                 }
                 baseComposable<AlbumArtistsFullViewRoute> {
-                    AlbumArtistsFullView(context)
+                    ProvideSwipeScope(songScope = LibraryPill.AlbumArtists.songSwipeScope) {
+                        AlbumArtistsFullView(context)
+                    }
                 }
                 baseComposable<GenresFullViewRoute> {
-                    GenresFullView(context)
+                    ProvideSwipeScope(songScope = LibraryPill.Genres.songSwipeScope) {
+                        GenresFullView(context)
+                    }
                 }
                 baseComposable<PlaylistsFullViewRoute> {
                     PlaylistsFullView(context)
                 }
                 baseComposable<BrowserFullViewRoute> {
-                    BrowserFullView(context)
+                    ProvideSwipeScope(songScope = LibraryPill.Browser.songSwipeScope) {
+                        BrowserFullView(context)
+                    }
                 }
                 baseComposable<FoldersFullViewRoute> {
-                    FoldersFullView(context)
+                    ProvideSwipeScope(songScope = LibraryPill.Folders.songSwipeScope) {
+                        FoldersFullView(context)
+                    }
                 }
                 baseComposable<TreeFullViewRoute> {
-                    TreeFullView(context)
+                    ProvideSwipeScope(songScope = LibraryPill.Tree.songSwipeScope) {
+                        TreeFullView(context)
+                    }
                 }
             }
         }

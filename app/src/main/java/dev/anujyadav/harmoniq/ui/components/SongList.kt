@@ -94,6 +94,14 @@ enum class SongListType {
     Album,
 }
 
+enum class MediaSortBarPlacement {
+    // pinned above the list
+    Sticky,
+
+    // scrolls with the list, right after its leading content
+    Inline,
+}
+
 @Composable
 fun SongList(
     context: ViewContext,
@@ -102,11 +110,16 @@ fun SongList(
     leadingContent: (LazyListScope.() -> Unit)? = null,
     trailingContent: (LazyListScope.() -> Unit)? = null,
     trailingOptionsContent: (@Composable ColumnScope.(Int, Song, () -> Unit) -> Unit)? = null,
+    songRemoveAction: ((Int, Song) -> SongRemoveAction?)? = null,
+    onPlayStarted: (() -> Unit)? = null,
     cardThumbnailLabel: (@Composable (Int, Song) -> Unit)? = null,
     cardThumbnailLabelStyle: SongCardThumbnailLabelStyle = SongCardThumbnailLabelStyle.Default,
     type: SongListType = SongListType.Default,
     disableHeartIcon: Boolean = false,
     enableAddMediaFoldersHint: Boolean = false,
+    sortBarPlacement: MediaSortBarPlacement = MediaSortBarPlacement.Sticky,
+    // only songs matching these terms are listed, in the selected sort order
+    filterTerms: String = "",
 ) {
     val sortBy by type.getLastUsedSortBy(context).flow.collectAsState()
     val sortReverse by type.getLastUsedSortReverse(context).flow.collectAsState()
@@ -115,91 +128,135 @@ fun SongList(
             context.symphony.groove.song.sort(songIds, sortBy, sortReverse)
         }
     }
+    val visibleSongIds by remember(sortedSongIds, filterTerms) {
+        derivedStateOf {
+            context.symphony.groove.song.filter(sortedSongIds, filterTerms)
+        }
+    }
 
-    MediaSortBarScaffold(
-        mediaSortBar = {
-            MediaSortBar(
+    val mediaSortBar = @Composable {
+        MediaSortBar(
+            context,
+            reverse = sortReverse,
+            onReverseChange = {
+                type.setLastUsedSortReverse(context, it)
+            },
+            sort = sortBy,
+            sorts = SongRepository.SortBy.entries
+                .associateWith { x -> ViewContext.parameterizedFn { x.label(it) } },
+            onSortChange = {
+                type.setLastUsedSortBy(context, it)
+            },
+            label = {
+                Text(AppStrings.XSongs((songsCount ?: songIds.size).toString()))
+            },
+            onShufflePlay = {
+                onPlayStarted?.invoke()
+                context.symphony.radio.shorty.playQueue(visibleSongIds, shuffle = true)
+            }
+        )
+    }
+
+    val content = @Composable {
+        when {
+            // a list with its own header keeps showing it, with the empty state below
+            songIds.isEmpty() && leadingContent == null -> SongListEmptyBody(
                 context,
-                reverse = sortReverse,
-                onReverseChange = {
-                    type.setLastUsedSortReverse(context, it)
-                },
-                sort = sortBy,
-                sorts = SongRepository.SortBy.entries
-                    .associateWith { x -> ViewContext.parameterizedFn { x.label(it) } },
-                onSortChange = {
-                    type.setLastUsedSortBy(context, it)
-                },
-                label = {
-                    Text(AppStrings.XSongs((songsCount ?: songIds.size).toString()))
-                },
-                onShufflePlay = {
-                    context.symphony.radio.shorty.playQueue(sortedSongIds, shuffle = true)
-                }
+                enableAddMediaFoldersHint,
             )
-        },
-        content = {
-            when {
-                songIds.isEmpty() -> IconTextBody(
-                    icon = { modifier ->
-                        Icon(Icons.Filled.MusicNote, null, modifier = modifier)
-                    },
-                    content = {
-                        Text(AppStrings.DamnThisIsSoEmpty)
-                        if (enableAddMediaFoldersHint) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                AppStrings.HintAddMediaFolders,
-                                style = MaterialTheme.typography.labelMedium,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier
-                                    .clickable {
-                                        context.navController.navigate(
-                                            GrooveSettingsViewRoute(SettingsViewRoute.ELEMENT_MEDIA_FOLDERS)
-                                        )
-                                    }
-                                    .padding(2.dp),
+
+            else -> {
+                val lazyListState = rememberLazyListState()
+                LazyColumn(
+                    state = lazyListState,
+                    modifier = Modifier.drawScrollBar(lazyListState)
+                ) {
+                    leadingContent?.invoke(this)
+                    if (sortBarPlacement == MediaSortBarPlacement.Inline) {
+                        item(contentType = SongListItemType.SortBar) {
+                            mediaSortBar()
+                        }
+                    }
+                    if (visibleSongIds.isEmpty()) {
+                        item(contentType = SongListItemType.Empty) {
+                            SubtleCaptionText(
+                                when {
+                                    songIds.isEmpty() -> AppStrings.DamnThisIsSoEmpty
+                                    else -> AppStrings.NoResultsFound
+                                }
                             )
                         }
                     }
-                )
-
-                else -> {
-                    val lazyListState = rememberLazyListState()
-
-                    LazyColumn(
-                        state = lazyListState,
-                        modifier = Modifier.drawScrollBar(lazyListState)
-                    ) {
-                        leadingContent?.invoke(this)
-                        itemsIndexed(
-                            sortedSongIds,
-                            key = { i, x -> "$i-$x" },
-                            contentType = { _, _ -> Groove.Kind.SONG }
-                        ) { i, songId ->
-                            context.symphony.groove.song.get(songId)?.let { song ->
-                                SongCard(
-                                    context,
-                                    song = song,
-                                    thumbnailLabel = cardThumbnailLabel?.let {
-                                        { it(i, song) }
-                                    },
-                                    thumbnailLabelStyle = cardThumbnailLabelStyle,
-                                    disableHeartIcon = disableHeartIcon,
-                                    trailingOptionsContent = trailingOptionsContent?.let {
-                                        { onDismissRequest -> it(i, song, onDismissRequest) }
-                                    },
-                                ) {
-                                    context.symphony.radio.shorty.playQueue(
-                                        sortedSongIds,
-                                        Radio.PlayOptions(index = i)
-                                    )
-                                }
+                    itemsIndexed(
+                        visibleSongIds,
+                        key = { i, x -> "$i-$x" },
+                        contentType = { _, _ -> Groove.Kind.SONG }
+                    ) { i, songId ->
+                        context.symphony.groove.song.get(songId)?.let { song ->
+                            SongCard(
+                                context,
+                                song = song,
+                                thumbnailLabel = cardThumbnailLabel?.let {
+                                    { it(i, song) }
+                                },
+                                thumbnailLabelStyle = cardThumbnailLabelStyle,
+                                disableHeartIcon = disableHeartIcon,
+                                trailingOptionsContent = trailingOptionsContent?.let {
+                                    { onDismissRequest -> it(i, song, onDismissRequest) }
+                                },
+                                removeAction = songRemoveAction?.invoke(i, song),
+                            ) {
+                                onPlayStarted?.invoke()
+                                context.symphony.radio.shorty.playQueue(
+                                    visibleSongIds,
+                                    Radio.PlayOptions(index = i)
+                                )
                             }
                         }
-                        trailingContent?.invoke(this)
                     }
+                    trailingContent?.invoke(this)
                 }
+            }
+        }
+    }
+
+    when (sortBarPlacement) {
+        MediaSortBarPlacement.Sticky -> MediaSortBarScaffold(
+            mediaSortBar = mediaSortBar,
+            content = content,
+        )
+
+        MediaSortBarPlacement.Inline -> content()
+    }
+}
+
+private enum class SongListItemType {
+    SortBar,
+    Empty,
+}
+
+@Composable
+private fun SongListEmptyBody(context: ViewContext, enableAddMediaFoldersHint: Boolean) {
+    IconTextBody(
+        icon = { modifier ->
+            Icon(Icons.Filled.MusicNote, null, modifier = modifier)
+        },
+        content = {
+            Text(AppStrings.DamnThisIsSoEmpty)
+            if (enableAddMediaFoldersHint) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    AppStrings.HintAddMediaFolders,
+                    style = MaterialTheme.typography.labelMedium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .clickable {
+                            context.navController.navigate(
+                                GrooveSettingsViewRoute(SettingsViewRoute.ELEMENT_MEDIA_FOLDERS)
+                            )
+                        }
+                        .padding(2.dp),
+                )
             }
         }
     )

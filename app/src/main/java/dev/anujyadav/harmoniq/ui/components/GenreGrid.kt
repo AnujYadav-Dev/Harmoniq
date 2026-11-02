@@ -114,6 +114,7 @@ import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 import dev.anujyadav.harmoniq.ui.view.GenreViewRoute
 
 import dev.anujyadav.harmoniq.utils.AppStrings
+import dev.anujyadav.harmoniq.ui.components.MediaLayout
 
 private object GenreTile {
     val colors = listOf(
@@ -154,6 +155,7 @@ fun GenreGrid(
     }
     val horizontalGridColumns by context.symphony.settings.lastUsedGenresHorizontalGridColumns.flow.collectAsState()
     val verticalGridColumns by context.symphony.settings.lastUsedGenresVerticalGridColumns.flow.collectAsState()
+    val layout by context.symphony.settings.lastUsedGenresLayout.flow.collectAsState()
     val gridColumns by remember(horizontalGridColumns, verticalGridColumns) {
         derivedStateOf {
             ResponsiveGridColumns(horizontalGridColumns, verticalGridColumns)
@@ -183,6 +185,8 @@ fun GenreGrid(
                             )
                         )
                     },
+                    layout = layout,
+                    onLayoutChange = { context.symphony.settings.lastUsedGenresLayout.setValue(it) },
                     onShowModifyLayout = {
                         showModifyLayoutSheet = true
                     },
@@ -202,13 +206,17 @@ fun GenreGrid(
                     content = { Text(AppStrings.DamnThisIsSoEmpty) }
                 )
 
-                else -> ResponsiveGrid(gridColumns) { gridData ->
+                else -> ResponsiveGrid(gridColumns, layout) { gridData ->
                     itemsIndexed(
                         sortedGenreNames,
                         key = { i, x -> "$i-$x" },
                         contentType = { _, _ -> Groove.Kind.GENRE }
                     ) { i, genreName ->
                         context.symphony.groove.genre.get(genreName)?.let { genre ->
+                            if (layout == MediaLayout.List) {
+                                GenreListItem(context, genre)
+                                return@let
+                            }
                             Card(
                                 modifier = Modifier
                                     .height(IntrinsicSize.Min)

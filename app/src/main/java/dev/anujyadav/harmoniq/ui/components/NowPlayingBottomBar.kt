@@ -69,6 +69,7 @@ import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 import dev.anujyadav.harmoniq.ui.view.NowPlayingViewRoute
 import dev.anujyadav.harmoniq.utils.runIfOrThis
 import kotlin.math.absoluteValue
+import dev.anujyadav.harmoniq.utils.AppStrings
 
 @Composable
 fun AnimatedNowPlayingBottomBar(context: ViewContext, insetPadding: Boolean = true) {
@@ -202,49 +203,49 @@ fun NowPlayingBottomBar(context: ViewContext, insetPadding: Boolean = true) {
                         }
                         Spacer(modifier = Modifier.width(15.dp))
                         if (showTrackControls) {
-                            IconButton(
-                                onClick = { context.symphony.radio.shorty.previous() }
-                            ) {
-                                Icon(Icons.Filled.SkipPrevious, null)
-                            }
-                        }
-                        if (showSeekControls) {
-                            IconButton(
-                                onClick = {
-                                    context.symphony.radio.shorty.seekFromCurrent(-seekBackDuration)
-                                }
-                            ) {
-                                Icon(Icons.Filled.FastRewind, null)
-                            }
-                        }
-                        IconButton(
-                            onClick = { context.symphony.radio.shorty.playPause() }
-                        ) {
-                            Icon(
-                                when {
-                                    !isPlaying -> Icons.Filled.PlayArrow
-                                    else -> Icons.Filled.Pause
-                                },
-                                null
+                            LabeledIconButton(
+                                icon = Icons.Filled.SkipPrevious,
+                                label = AppStrings.Previous,
+                                onClick = { context.symphony.radio.shorty.previous() },
                             )
                         }
                         if (showSeekControls) {
-                            IconButton(
+                            LabeledIconButton(
+                                icon = Icons.Filled.FastRewind,
+                                label = AppStrings.Rewind,
+                                onClick = {
+                                    context.symphony.radio.shorty.seekFromCurrent(-seekBackDuration)
+                                },
+                            )
+                        }
+                        LabeledIconButton(
+                            icon = when {
+                                !isPlaying -> Icons.Filled.PlayArrow
+                                else -> Icons.Filled.Pause
+                            },
+                            label = when {
+                                !isPlaying -> AppStrings.Play
+                                else -> AppStrings.Pause
+                            },
+                            onClick = { context.symphony.radio.shorty.playPause() },
+                        )
+                        if (showSeekControls) {
+                            LabeledIconButton(
+                                icon = Icons.Filled.FastForward,
+                                label = AppStrings.FastForward,
                                 onClick = {
                                     context.symphony.radio.shorty.seekFromCurrent(
                                         seekForwardDuration
                                     )
-                                }
-                            ) {
-                                Icon(Icons.Filled.FastForward, null)
-                            }
+                                },
+                            )
                         }
                         if (showTrackControls) {
-                            IconButton(
-                                onClick = { context.symphony.radio.shorty.skip() }
-                            ) {
-                                Icon(Icons.Filled.SkipNext, null)
-                            }
+                            LabeledIconButton(
+                                icon = Icons.Filled.SkipNext,
+                                label = AppStrings.Next,
+                                onClick = { context.symphony.radio.shorty.skip() },
+                            )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                     }

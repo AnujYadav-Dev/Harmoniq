@@ -207,6 +207,8 @@ fun PlaylistManageSongsDialog(
                                             else -> null
                                         },
                                         disableHeartIcon = true,
+                                        // a picker, tapping toggles selection
+                                        swipeActionsEnabled = false,
                                     ) {
                                         when {
                                             nSelectedSongIds.contains(song.id) -> {

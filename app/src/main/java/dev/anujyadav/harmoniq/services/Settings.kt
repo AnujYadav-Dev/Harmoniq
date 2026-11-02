@@ -11,7 +11,9 @@ import dev.anujyadav.harmoniq.services.groove.repositories.GenreRepository
 import dev.anujyadav.harmoniq.services.groove.repositories.PlaylistRepository
 import dev.anujyadav.harmoniq.services.groove.repositories.SongRepository
 import dev.anujyadav.harmoniq.services.radio.RadioQueue
+import dev.anujyadav.harmoniq.ui.components.PlaylistAction
 import dev.anujyadav.harmoniq.ui.components.ResponsiveGridColumns
+import dev.anujyadav.harmoniq.ui.components.SongAction
 import dev.anujyadav.harmoniq.ui.theme.ThemeMode
 import dev.anujyadav.harmoniq.ui.view.NowPlayingControlsLayout
 import dev.anujyadav.harmoniq.ui.view.NowPlayingLyricsLayout
@@ -25,6 +27,13 @@ import kotlin.enums.enumEntries
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import org.json.JSONArray
+import org.json.JSONObject
+import dev.anujyadav.harmoniq.ui.components.PlaylistSwipeScope
+import dev.anujyadav.harmoniq.ui.components.SongSwipeScope
+import dev.anujyadav.harmoniq.ui.components.SwipeDirection
+import java.util.concurrent.ConcurrentHashMap
+import dev.anujyadav.harmoniq.ui.components.MediaLayout
 
 class Settings(private val symphony: Symphony) {
     abstract class Entry<T>(val key: String) {
@@ -87,6 +96,56 @@ class Settings(private val symphony: Symphony) {
 
         override fun setValueInternal(value: T) = getSharedPreferences().edit {
             putString(key, value.name)
+        }
+    }
+
+    /**
+     * An enum entry that can also be explicitly set to `null` ("none"), which is
+     * different from never being set (falls back to [defaultValue]).
+     */
+    inner class OptionalEnumEntry<T : Enum<T>>(
+        key: String,
+        private val values: EnumEntries<T>,
+        val defaultValue: T?,
+        // read when this entry was never set, e.g. a setting it replaced
+        private val fallbackKey: String? = null,
+    ) : Entry<T?>(key) {
+        private fun getStored() = getSharedPreferences().run {
+            getString(key, null) ?: fallbackKey?.let { getString(it, null) }
+        }
+
+        override fun getValueInternal() = when (val stored = getStored()) {
+            null -> defaultValue
+            NONE_VALUE -> null
+            else -> values.find { it.name == stored } ?: defaultValue
+        }
+
+        override fun setValueInternal(value: T?) = getSharedPreferences().edit {
+            putString(key, value?.name ?: NONE_VALUE)
+        }
+
+        fun reset() = setValue(defaultValue)
+    }
+
+    inner class StringListEntry(key: String) : Entry<List<String>>(key) {
+        override fun getValueInternal() = getSharedPreferences().getString(key, null)
+            ?.let { runCatching { JSONArray(it) }.getOrNull() }
+            ?.let { json -> List(json.length()) { json.getString(it) } }
+            ?: emptyList()
+
+        override fun setValueInternal(value: List<String>) = getSharedPreferences().edit {
+            putString(key, JSONArray(value).toString())
+        }
+    }
+
+    inner class StringLongMapEntry(key: String) : Entry<Map<String, Long>>(key) {
+        override fun getValueInternal() = getSharedPreferences().getString(key, null)
+            ?.let { runCatching { JSONObject(it) }.getOrNull() }
+            ?.let { json -> json.keys().asSequence().associateWith { json.optLong(it) } }
+            ?: emptyMap()
+
+        override fun setValueInternal(value: Map<String, Long>) = getSharedPreferences().edit {
+            putString(key, JSONObject(value).toString())
         }
     }
 
@@ -252,7 +311,7 @@ class Settings(private val symphony: Symphony) {
             }
     }
     val libraryPillOrder = object : Entry<List<LibraryPill>>("library_pill_order") {
-        private val default = LibraryPill.entries.toList()
+        private val default = LibraryPill.defaultOrder
         override fun getValueInternal() =
             getSharedPreferences().getString(key, null)
                 ?.split(",")
@@ -262,6 +321,54 @@ class Settings(private val symphony: Symphony) {
         override fun setValueInternal(value: List<LibraryPill>) =
             getSharedPreferences().edit { putString(key, value.joinToString(",") { it.name }) }
     }
+    // entries are created on demand per scope, cached so each keeps a single flow
+    private val swipeActionEntries = ConcurrentHashMap<String, OptionalEnumEntry<*>>()
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T : Enum<T>> swipeActionEntry(
+        kind: String,
+        scopeKey: String,
+        direction: SwipeDirection,
+        values: EnumEntries<T>,
+        defaultValue: T?,
+    ) = swipeActionEntries.getOrPut("${kind}_${direction.key}_$scopeKey") {
+        OptionalEnumEntry(
+            "${kind}_swipe_${direction.key}_action_$scopeKey",
+            values,
+            defaultValue,
+            // the app wide setting used before swipe actions became per screen
+            fallbackKey = "${kind}_swipe_${direction.key}_action",
+        )
+    } as OptionalEnumEntry<T>
+
+    fun songSwipeAction(scope: SongSwipeScope, direction: SwipeDirection) = swipeActionEntry(
+        SONG_SWIPE_KIND,
+        scope.key,
+        direction,
+        enumEntries<SongAction>(),
+        scope.defaultAction(direction),
+    )
+
+    fun playlistSwipeAction(scope: PlaylistSwipeScope, direction: SwipeDirection) = swipeActionEntry(
+        PLAYLIST_SWIPE_KIND,
+        scope.key,
+        direction,
+        enumEntries<PlaylistAction>(),
+        scope.defaultAction(direction),
+    )
+
+    val homePlaylistsSortBy = EnumEntry(
+        "home_playlists_sort_by",
+        enumEntries<PlaylistRepository.HomeSortBy>(),
+        PlaylistRepository.HomeSortBy.RECENTLY_CREATED,
+    )
+    val homePlaylistsLimit = IntEntry(
+        "home_playlists_limit",
+        PlaylistRepository.HOME_PLAYLISTS_DEFAULT_LIMIT,
+    )
+    val homeShowFavorites = BooleanEntry("home_show_favorites", true)
+    val homePlaylistIds = StringListEntry("home_playlist_ids")
+    val playlistLastPlayed = StringLongMapEntry("playlist_last_played")
     val lastMainTab = EnumEntry("main_last_tab", enumEntries<MainTab>(), MainTab.HOME)
     val songsFilterPattern = NullableStringEntry("songs_filter_pattern")
     val minSongDuration = IntEntry("min_song_duration", 0)
@@ -280,8 +387,24 @@ class Settings(private val symphony: Symphony) {
     val forYouContents = EnumSetEntry(
         "for_you_contents",
         enumEntries<ForYou>(),
-        setOf(ForYou.Albums, ForYou.Artists),
+        setOf(ForYou.Songs, ForYou.Albums, ForYou.Artists),
     )
+    val suggestedSongsCategory = NullableStringEntry("suggested_songs_category")
+    val suggestedSongsLayout = EnumEntry(
+        "suggested_songs_layout",
+        enumEntries<MediaLayout>(),
+        MediaLayout.List,
+    )
+    val lastUsedAlbumsLayout = mediaLayoutEntry("last_used_albums_layout")
+    val lastUsedArtistsLayout = mediaLayoutEntry("last_used_artists_layout")
+    val lastUsedAlbumArtistsLayout = mediaLayoutEntry("last_used_album_artists_layout")
+    val lastUsedGenresLayout = mediaLayoutEntry("last_used_genres_layout")
+    val lastUsedPlaylistsLayout = mediaLayoutEntry("last_used_playlists_layout")
+    val lastUsedFoldersLayout = mediaLayoutEntry("last_used_folders_layout")
+
+    // library sections keep their grid unless the user switches
+    private fun mediaLayoutEntry(key: String) =
+        EnumEntry(key, enumEntries<MediaLayout>(), MediaLayout.Grid)
     val blacklistFolders = StringSetEntry("blacklist_folders", emptySet())
     val whitelistFolders = StringSetEntry("whitelist_folders", emptySet())
 
@@ -331,4 +454,10 @@ class Settings(private val symphony: Symphony) {
 
     private fun getSharedPreferences() = symphony.applicationContext
         .getSharedPreferences("settings", Context.MODE_PRIVATE)
+
+    companion object {
+        private const val NONE_VALUE = ""
+        private const val SONG_SWIPE_KIND = "song"
+        private const val PLAYLIST_SWIPE_KIND = "playlist"
+    }
 }

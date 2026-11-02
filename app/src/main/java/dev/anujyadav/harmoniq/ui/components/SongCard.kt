@@ -1,9 +1,9 @@
 ﻿package dev.anujyadav.harmoniq.ui.components
 
 
-import android.content.Intent
-import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -16,14 +16,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
-import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ColorScheme
@@ -51,11 +45,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import dev.anujyadav.harmoniq.services.groove.Song
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
-import dev.anujyadav.harmoniq.ui.view.AlbumArtistViewRoute
-import dev.anujyadav.harmoniq.ui.view.AlbumViewRoute
-import dev.anujyadav.harmoniq.ui.view.ArtistViewRoute
 import dev.anujyadav.harmoniq.utils.AppStrings
-import dev.anujyadav.harmoniq.utils.Logger
 
 @Composable
 fun SongCard(
@@ -68,6 +58,10 @@ fun SongCard(
     thumbnailLabel: (@Composable () -> Unit)? = null,
     thumbnailLabelStyle: SongCardThumbnailLabelStyle = SongCardThumbnailLabelStyle.Default,
     trailingOptionsContent: (@Composable ColumnScope.(() -> Unit) -> Unit)? = null,
+    selected: Boolean = false,
+    swipeActionsEnabled: Boolean = true,
+    removeAction: SongRemoveAction? = null,
+    onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val queue by context.symphony.radio.observatory.queue.collectAsState()
@@ -75,15 +69,56 @@ fun SongCard(
     val isCurrentPlaying by remember(autoHighlight, song, queue) {
         derivedStateOf { autoHighlight && song.id == queue.getOrNull(queueIndex) }
     }
-    val favoriteSongIds by context.symphony.groove.playlist.favorites.collectAsState()
-    val isFavorite by remember(favoriteSongIds, song) {
-        derivedStateOf { favoriteSongIds.contains(song.id) }
+
+    // swiping "play" behaves exactly like tapping the row on that screen
+    SongActionsHost(context, song, onPlay = onClick, removeAction = removeAction) { actions ->
+        SongSwipeActionsBox(context, actions, enabled = swipeActionsEnabled) {
+            SongCardContent(
+                context,
+                actions,
+                highlighted = highlighted || isCurrentPlaying,
+                selected = selected,
+                disableHeartIcon = disableHeartIcon,
+                leading = leading,
+                thumbnailLabel = thumbnailLabel,
+                thumbnailLabelStyle = thumbnailLabelStyle,
+                trailingOptionsContent = trailingOptionsContent,
+                onLongClick = onLongClick,
+                onClick = onClick,
+            )
+        }
     }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun SongCardContent(
+    context: ViewContext,
+    actions: SongActions,
+    highlighted: Boolean,
+    selected: Boolean,
+    disableHeartIcon: Boolean,
+    leading: @Composable () -> Unit,
+    thumbnailLabel: (@Composable () -> Unit)?,
+    thumbnailLabelStyle: SongCardThumbnailLabelStyle,
+    trailingOptionsContent: (@Composable ColumnScope.(() -> Unit) -> Unit)?,
+    onLongClick: (() -> Unit)?,
+    onClick: () -> Unit,
+) {
+    val song = actions.song
+    val isFavorite = actions.isFavorite
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        onClick = onClick
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(CardDefaults.shape)
+            .combinedClickable(onLongClick = onLongClick, onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = when {
+                selected -> MaterialTheme.colorScheme.secondaryContainer
+                else -> Color.Transparent
+            }
+        ),
     ) {
         Box(modifier = Modifier.padding(12.dp, 12.dp, 4.dp, 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -130,7 +165,7 @@ fun SongCard(
                         song.title,
                         style = MaterialTheme.typography.bodyMedium.copy(
                             color = when {
-                                highlighted || isCurrentPlaying -> MaterialTheme.colorScheme.primary
+                                highlighted -> MaterialTheme.colorScheme.primary
                                 else -> LocalTextStyle.current.color
                             }
                         ),
@@ -166,18 +201,14 @@ fun SongCard(
                     }
 
                     var showOptionsMenu by remember { mutableStateOf(false) }
-                    IconButton(
-                        onClick = { showOptionsMenu = !showOptionsMenu }
+                    LabeledIconButton(
+                        icon = Icons.Filled.MoreVert,
+                        label = AppStrings.MoreOptions,
+                        iconModifier = Modifier.size(24.dp),
+                        onClick = { showOptionsMenu = !showOptionsMenu },
                     ) {
-                        Icon(
-                            Icons.Filled.MoreVert,
-                            null,
-                            modifier = Modifier.size(24.dp),
-                        )
                         SongDropdownMenu(
-                            context,
-                            song,
-                            isFavorite = isFavorite,
+                            actions,
                             trailingContent = trailingOptionsContent,
                             expanded = showOptionsMenu,
                             onDismissRequest = {
@@ -195,178 +226,72 @@ fun SongCard(
 fun SongDropdownMenu(
     context: ViewContext,
     song: Song,
-    isFavorite: Boolean,
     trailingContent: (@Composable ColumnScope.(() -> Unit) -> Unit)? = null,
     expanded: Boolean,
     onDismissRequest: () -> Unit,
 ) {
-    var showInfoDialog by remember { mutableStateOf(false) }
-    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+    SongActionsHost(context, song) { actions ->
+        SongDropdownMenu(
+            actions,
+            trailingContent = trailingContent,
+            expanded = expanded,
+            onDismissRequest = onDismissRequest,
+        )
+    }
+}
+
+@Composable
+fun SongDropdownMenu(
+    actions: SongActions,
+    trailingContent: (@Composable ColumnScope.(() -> Unit) -> Unit)? = null,
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+) {
+    val song = actions.song
+
+    @Composable
+    fun ActionItem(action: SongAction, label: String = actions.label(action), onClick: () -> Unit) {
+        DropdownMenuItem(
+            leadingIcon = {
+                Icon(actions.icon(action), null)
+            },
+            text = {
+                Text(label)
+            },
+            onClick = {
+                onDismissRequest()
+                onClick()
+            }
+        )
+    }
 
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest
     ) {
-        DropdownMenuItem(
-            leadingIcon = {
-                Icon(Icons.Filled.Favorite, null)
-            },
-            text = {
-                Text(
-                    if (isFavorite) AppStrings.Unfavorite
-                    else AppStrings.Favorite
-                )
-            },
-            onClick = {
-                onDismissRequest()
-                context.symphony.groove.playlist.run {
-                    when {
-                        isFavorite -> unfavorite(song.id)
-                        else -> favorite(song.id)
+        SongAction.menuActions
+            .filter { actions.isAvailable(it) }
+            .forEach { action ->
+                when (action) {
+                    // one entry per artist, unlike the swipe action which uses the first one
+                    SongAction.ViewArtist -> song.artists.forEach { artistName ->
+                        ActionItem(action, "${AppStrings.ViewArtist}: $artistName") {
+                            actions.viewArtist(artistName)
+                        }
+                    }
+
+                    SongAction.ViewAlbumArtist -> song.albumArtists.forEach { albumArtist ->
+                        ActionItem(action, "${AppStrings.ViewAlbumArtist}: $albumArtist") {
+                            actions.viewAlbumArtist(albumArtist)
+                        }
+                    }
+
+                    else -> ActionItem(action) {
+                        actions.perform(action)
                     }
                 }
             }
-        )
-        DropdownMenuItem(
-            leadingIcon = {
-                Icon(Icons.AutoMirrored.Filled.PlaylistPlay, null)
-            },
-            text = {
-                Text(AppStrings.PlayNext)
-            },
-            onClick = {
-                onDismissRequest()
-                context.symphony.radio.queue.add(
-                    song.id,
-                    context.symphony.radio.queue.currentSongIndex + 1
-                )
-            }
-        )
-        DropdownMenuItem(
-            leadingIcon = {
-                Icon(Icons.AutoMirrored.Filled.PlaylistPlay, null)
-            },
-            text = {
-                Text(AppStrings.AddToQueue)
-            },
-            onClick = {
-                onDismissRequest()
-                context.symphony.radio.queue.add(song.id)
-            }
-        )
-        DropdownMenuItem(
-            leadingIcon = {
-                Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null)
-            },
-            text = {
-                Text(AppStrings.AddToPlaylist)
-            },
-            onClick = {
-                onDismissRequest()
-                showAddToPlaylistDialog = true
-            }
-        )
-        song.artists.forEach { artistName ->
-            DropdownMenuItem(
-                leadingIcon = {
-                    Icon(Icons.Filled.Person, null)
-                },
-                text = {
-                    Text("${AppStrings.ViewArtist}: $artistName")
-                },
-                onClick = {
-                    onDismissRequest()
-                    context.navController.navigate(ArtistViewRoute(artistName))
-                }
-            )
-        }
-        song.albumArtists.forEach { albumArtist ->
-            DropdownMenuItem(
-                leadingIcon = {
-                    Icon(Icons.Filled.Person, null)
-                },
-                text = {
-                    Text("${AppStrings.ViewAlbumArtist}: $albumArtist")
-                },
-                onClick = {
-                    onDismissRequest()
-                    context.navController.navigate(AlbumArtistViewRoute(albumArtist))
-                }
-            )
-        }
-        context.symphony.groove.album.getIdFromSong(song)?.let { albumId ->
-            DropdownMenuItem(
-                leadingIcon = {
-                    Icon(Icons.Filled.Album, null)
-                },
-                text = {
-                    Text(AppStrings.ViewAlbum)
-                },
-                onClick = {
-                    onDismissRequest()
-                    context.navController.navigate(AlbumViewRoute(albumId))
-                }
-            )
-        }
-        DropdownMenuItem(
-            leadingIcon = {
-                Icon(Icons.Filled.Share, null)
-            },
-            text = {
-                Text(AppStrings.ShareSong)
-            },
-            onClick = {
-                onDismissRequest()
-                try {
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        putExtra(Intent.EXTRA_STREAM, song.uri)
-                        type = context.activity.contentResolver.getType(song.uri)
-                    }
-                    context.activity.startActivity(intent)
-                } catch (err: Exception) {
-                    Logger.error("SongCard", "share failed", err)
-                    Toast.makeText(
-                        context.activity,
-                        AppStrings.ShareFailedX(err.localizedMessage ?: err.toString()),
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                }
-            }
-        )
-        DropdownMenuItem(
-            leadingIcon = {
-                Icon(Icons.Filled.Info, null)
-            },
-            text = {
-                Text(AppStrings.Details)
-            },
-            onClick = {
-                onDismissRequest()
-                showInfoDialog = true
-            }
-        )
         trailingContent?.invoke(this, onDismissRequest)
-    }
-
-    if (showInfoDialog) {
-        SongInformationDialog(
-            context,
-            song = song,
-            onDismissRequest = {
-                showInfoDialog = false
-            }
-        )
-    }
-
-    if (showAddToPlaylistDialog) {
-        AddToPlaylistDialog(
-            context,
-            songIds = listOf(song.id),
-            onDismissRequest = {
-                showAddToPlaylistDialog = false
-            }
-        )
     }
 }
 

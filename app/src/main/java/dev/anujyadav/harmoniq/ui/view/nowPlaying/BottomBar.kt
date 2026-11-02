@@ -58,6 +58,7 @@ import dev.anujyadav.harmoniq.ui.view.QueueViewRoute
 import dev.anujyadav.harmoniq.utils.AppStrings
 import dev.anujyadav.harmoniq.utils.Logger
 import kotlinx.coroutines.launch
+import dev.anujyadav.harmoniq.ui.components.LabeledIconButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,7 +112,13 @@ fun NowPlayingBodyBottomBar(
             states.showLyrics.let { showLyricsState ->
                 val showLyrics by showLyricsState.collectAsState()
 
-                IconButton(
+                LabeledIconButton(
+                    icon = Icons.AutoMirrored.Outlined.Article,
+                    label = AppStrings.Lyrics,
+                    tint = when {
+                        showLyrics -> MaterialTheme.colorScheme.primary
+                        else -> LocalContentColor.current
+                    },
                     onClick = {
                         when (lyricsLayout) {
                             NowPlayingLyricsLayout.ReplaceArtwork -> {
@@ -124,56 +131,41 @@ fun NowPlayingBodyBottomBar(
                                 context.navController.navigate(LyricsViewRoute)
                             }
                         }
-                    }
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Outlined.Article,
-                        null,
-                        tint = when {
-                            showLyrics -> MaterialTheme.colorScheme.primary
-                            else -> LocalContentColor.current
-                        }
-                    )
-                }
+                    },
+                )
             }
-            IconButton(
+            LabeledIconButton(
+                icon = when (currentLoopMode) {
+                    RadioQueue.LoopMode.Song -> Icons.Filled.RepeatOne
+                    else -> Icons.Filled.Repeat
+                },
+                label = AppStrings.Repeat,
+                tint = when (currentLoopMode) {
+                    RadioQueue.LoopMode.None -> LocalContentColor.current
+                    else -> MaterialTheme.colorScheme.primary
+                },
                 onClick = {
                     context.symphony.radio.queue.toggleLoopMode()
-                }
-            ) {
-                Icon(
-                    when (currentLoopMode) {
-                        RadioQueue.LoopMode.Song -> Icons.Filled.RepeatOne
-                        else -> Icons.Filled.Repeat
-                    },
-                    null,
-                    tint = when (currentLoopMode) {
-                        RadioQueue.LoopMode.None -> LocalContentColor.current
-                        else -> MaterialTheme.colorScheme.primary
-                    }
-                )
-            }
-            IconButton(
+                },
+            )
+            LabeledIconButton(
+                icon = Icons.Filled.Shuffle,
+                label = AppStrings.Shuffle,
+                tint = when {
+                    currentShuffleMode -> MaterialTheme.colorScheme.primary
+                    else -> LocalContentColor.current
+                },
                 onClick = {
                     context.symphony.radio.queue.toggleShuffleMode()
-                }
-            ) {
-                Icon(
-                    Icons.Filled.Shuffle,
-                    null,
-                    tint = when {
-                        currentShuffleMode -> MaterialTheme.colorScheme.primary
-                        else -> LocalContentColor.current
-                    },
-                )
-            }
-            IconButton(
+                },
+            )
+            LabeledIconButton(
+                icon = Icons.Outlined.MoreHoriz,
+                label = AppStrings.MoreOptions,
                 onClick = {
                     showExtraOptions = !showExtraOptions
-                }
-            ) {
-                Icon(Icons.Outlined.MoreHoriz, null)
-            }
+                },
+            )
         }
 
         if (showSleepTimerDialog) {

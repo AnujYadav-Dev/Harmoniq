@@ -1,9 +1,6 @@
 ﻿package dev.anujyadav.harmoniq.ui.components
 
 
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,20 +13,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,90 +38,86 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import dev.anujyadav.harmoniq.services.groove.MediaExposer
 import dev.anujyadav.harmoniq.services.groove.Playlist
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 import dev.anujyadav.harmoniq.ui.theme.ThemeColors
 import dev.anujyadav.harmoniq.ui.view.PlaylistViewRoute
-import dev.anujyadav.harmoniq.utils.AppStrings
-import dev.anujyadav.harmoniq.utils.Logger
 
 @Composable
 fun PlaylistTile(context: ViewContext, playlist: Playlist) {
     val updateId by context.symphony.groove.playlist.updateId.collectAsState()
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentHeight(),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        onClick = {
-            context.navController.navigate(PlaylistViewRoute(playlist.id))
-        }
-    ) {
-        Box(modifier = Modifier.padding(12.dp)) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box {
-                    AsyncImage(
-                        // TODO: remove this hack after moving to reactive objects
-                        remember(updateId, playlist) {
-                            playlist.createArtworkImageRequest(context.symphony).build()
-                        },
-                        null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp)),
-                    )
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 4.dp)
-                    ) {
-                        var showOptionsMenu by remember { mutableStateOf(false) }
-                        IconButton(
-                            onClick = { showOptionsMenu = !showOptionsMenu }
-                        ) {
-                            Icon(Icons.Filled.MoreVert, null)
-                            PlaylistDropdownMenu(
-                                context,
-                                playlist,
-                                expanded = showOptionsMenu,
-                                onDismissRequest = {
-                                    showOptionsMenu = false
-                                }
-                            )
-                        }
-                    }
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(8.dp)
-                    ) {
-                        IconButton(
+    PlaylistActionsHost(context, playlist) { actions ->
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(),
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+            onClick = {
+                context.navController.navigate(PlaylistViewRoute(playlist.id))
+            }
+        ) {
+            Box(modifier = Modifier.padding(12.dp)) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box {
+                        AsyncImage(
+                            // TODO: remove this hack after moving to reactive objects
+                            remember(updateId, playlist) {
+                                playlist.createArtworkImageRequest(context.symphony).build()
+                            },
+                            null,
+                            contentScale = ContentScale.Crop,
                             modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.surface,
-                                    RoundedCornerShape(12.dp)
-                                )
-                                .then(Modifier.size(36.dp)),
-                            onClick = {
-                                context.symphony.radio.shorty.playQueue(
-                                    playlist.getSortedSongIds(context.symphony)
+                                .aspectRatio(1f)
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp)),
+                        )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(top = 4.dp)
+                        ) {
+                            var showOptionsMenu by remember { mutableStateOf(false) }
+                            IconButton(
+                                onClick = { showOptionsMenu = !showOptionsMenu }
+                            ) {
+                                Icon(Icons.Filled.MoreVert, null)
+                                PlaylistDropdownMenu(
+                                    actions,
+                                    expanded = showOptionsMenu,
+                                    onDismissRequest = {
+                                        showOptionsMenu = false
+                                    }
                                 )
                             }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(8.dp)
                         ) {
-                            Icon(Icons.Filled.PlayArrow, null)
+                            IconButton(
+                                modifier = Modifier
+                                    .background(
+                                        MaterialTheme.colorScheme.surface,
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .then(Modifier.size(36.dp)),
+                                onClick = {
+                                    actions.play()
+                                }
+                            ) {
+                                Icon(Icons.Filled.PlayArrow, null)
+                            }
                         }
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        playlist.title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                    )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    playlist.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
-                )
             }
         }
     }
@@ -145,236 +133,53 @@ fun PlaylistDropdownMenu(
     onDelete: (() -> Unit) = {},
     onDismissRequest: () -> Unit,
 ) {
-    val savePlaylistLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument(MediaExposer.MIMETYPE_M3U)
-    ) { uri ->
-        uri?.let { _ ->
-            try {
-                context.symphony.groove.playlist.savePlaylistToUri(playlist, uri)
-                Toast.makeText(
-                    context.activity,
-                    AppStrings.ExportedX(playlist.title),
-                    Toast.LENGTH_SHORT,
-                ).show()
-            } catch (err: Exception) {
-                Logger.error("PlaylistTile", "export failed (activity result)", err)
-                Toast.makeText(
-                    context.activity,
-                    AppStrings.ExportFailedX(
-                        err.localizedMessage ?: err.toString()
-                    ),
-                    Toast.LENGTH_SHORT,
-                ).show()
-            }
-        }
+    PlaylistActionsHost(
+        context,
+        playlist,
+        onSongsChanged = onSongsChanged,
+        onRename = onRename,
+        onDelete = onDelete,
+    ) { actions ->
+        PlaylistDropdownMenu(
+            actions,
+            expanded = expanded,
+            onDismissRequest = onDismissRequest,
+        )
     }
+}
 
-    var showSongsPicker by remember { mutableStateOf(false) }
-    var showInfoDialog by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
-    var showRenameDialog by remember { mutableStateOf(false) }
-
+@Composable
+fun PlaylistDropdownMenu(
+    actions: PlaylistActions,
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+) {
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest
     ) {
-        DropdownMenuItem(
-            leadingIcon = {
-                Icon(Icons.AutoMirrored.Filled.PlaylistPlay, null)
-            },
-            text = {
-                Text(AppStrings.ShufflePlay)
-            },
-            onClick = {
-                onDismissRequest()
-                context.symphony.radio.shorty.playQueue(
-                    playlist.getSortedSongIds(context.symphony),
-                    shuffle = true,
-                )
-            }
-        )
-        DropdownMenuItem(
-            leadingIcon = {
-                Icon(Icons.AutoMirrored.Filled.PlaylistPlay, null)
-            },
-            text = {
-                Text(AppStrings.PlayNext)
-            },
-            onClick = {
-                onDismissRequest()
-                context.symphony.radio.queue.add(
-                    playlist.getSortedSongIds(context.symphony),
-                    context.symphony.radio.queue.currentSongIndex + 1
-                )
-            }
-        )
-        DropdownMenuItem(
-            leadingIcon = {
-                Icon(Icons.AutoMirrored.Filled.PlaylistPlay, null)
-            },
-            text = {
-                Text(AppStrings.AddToQueue)
-            },
-            onClick = {
-                onDismissRequest()
-                context.symphony.radio.queue.add(playlist.getSongIds(context.symphony))
-            }
-        )
-        DropdownMenuItem(
-            leadingIcon = {
-                Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null)
-            },
-            text = {
-                Text(AppStrings.AddToPlaylist)
-            },
-            onClick = {
-                onDismissRequest()
-                showAddToPlaylistDialog = true
-            }
-        )
-        if (playlist.isNotLocal) {
-            DropdownMenuItem(
-                leadingIcon = {
-                    Icon(Icons.AutoMirrored.Filled.PlaylistAdd, null)
-                },
-                text = {
-                    Text(AppStrings.ManageSongs)
-                },
-                onClick = {
-                    onDismissRequest()
-                    showSongsPicker = true
-                }
-            )
-        }
-        DropdownMenuItem(
-            leadingIcon = {
-                Icon(Icons.Filled.Info, null)
-            },
-            text = {
-                Text(AppStrings.Details)
-            },
-            onClick = {
-                onDismissRequest()
-                showInfoDialog = true
-            }
-        )
-        if (playlist.isNotLocal) {
-            DropdownMenuItem(
-                leadingIcon = {
-                    Icon(Icons.Filled.Save, null)
-                },
-                text = {
-                    Text(AppStrings.Export)
-                },
-                onClick = {
-                    onDismissRequest()
-                    try {
-                        savePlaylistLauncher.launch("${playlist.title}.m3u")
-                    } catch (err: Exception) {
-                        Logger.error("PlaylistTile", "export failed", err)
-                        Toast.makeText(
-                            context.activity,
-                            AppStrings.ExportFailedX(
-                                err.localizedMessage ?: err.toString()
-                            ),
-                            Toast.LENGTH_SHORT
-                        ).show()
+        PlaylistAction.menuActions
+            .filter { actions.isAvailable(it) }
+            .forEach { action ->
+                DropdownMenuItem(
+                    leadingIcon = {
+                        Icon(
+                            actions.icon(action),
+                            null,
+                            tint = when (action) {
+                                PlaylistAction.Delete -> ThemeColors.Red
+                                else -> LocalContentColor.current
+                            },
+                        )
+                    },
+                    text = {
+                        Text(actions.label(action))
+                    },
+                    onClick = {
+                        onDismissRequest()
+                        actions.perform(action)
                     }
-                }
-            )
-            DropdownMenuItem(
-                leadingIcon = {
-                    Icon(Icons.Filled.Edit, null)
-                },
-                text = {
-                    Text(AppStrings.Rename)
-                },
-                onClick = {
-                    onDismissRequest()
-                    showRenameDialog = true
-                }
-            )
-        }
-        if (!context.symphony.groove.playlist.isBuiltInPlaylist(playlist)) {
-            DropdownMenuItem(
-                leadingIcon = {
-                    Icon(
-                        Icons.Filled.DeleteForever,
-                        null,
-                        tint = ThemeColors.Red,
-                    )
-                },
-                text = {
-                    Text(AppStrings.Delete)
-                },
-                onClick = {
-                    onDismissRequest()
-                    showDeleteDialog = true
-                }
-            )
-        }
-    }
-
-    if (showInfoDialog) {
-        PlaylistInformationDialog(
-            context,
-            playlist = playlist,
-            onDismissRequest = {
-                showInfoDialog = false
+                )
             }
-        )
-    }
-
-    if (showSongsPicker) {
-        PlaylistManageSongsDialog(
-            context,
-            selectedSongIds = playlist.getSongIds(context.symphony),
-            onDone = {
-                context.symphony.groove.playlist.update(playlist.id, it)
-                onSongsChanged()
-                showSongsPicker = false
-            }
-        )
-    }
-
-    if (showDeleteDialog) {
-        ConfirmationDialog(
-            context,
-            title = {
-                Text(AppStrings.DeletePlaylist)
-            },
-            description = {
-                Text(AppStrings.AreYouSureThatYouWantToDeleteThisPlaylist)
-            },
-            onResult = { result ->
-                showDeleteDialog = false
-                if (result) {
-                    onDelete()
-                    context.symphony.groove.playlist.delete(playlist.id)
-                }
-            }
-        )
-    }
-
-    if (showAddToPlaylistDialog) {
-        AddToPlaylistDialog(
-            context,
-            songIds = playlist.getSongIds(context.symphony),
-            onDismissRequest = {
-                showAddToPlaylistDialog = false
-            }
-        )
-    }
-
-    if (showRenameDialog) {
-        RenamePlaylistDialog(
-            context,
-            playlist = playlist,
-            onRename = onRename,
-            onDismissRequest = {
-                showRenameDialog = false
-            }
-        )
     }
 }

@@ -35,6 +35,8 @@ import dev.anujyadav.harmoniq.ui.view.settings.PlayerSettingsViewRoute
 import dev.anujyadav.harmoniq.ui.view.settings.AboutSettingsViewRoute
 import dev.anujyadav.harmoniq.utils.AppStrings
 import kotlinx.serialization.Serializable
+import androidx.compose.material.icons.filled.Swipe
+import dev.anujyadav.harmoniq.ui.view.settings.SwipeActionsSettingsViewRoute
 
 @Serializable
 data class SettingsViewRoute(val initialElement: String? = null) {
@@ -116,6 +118,18 @@ fun SettingsView(context: ViewContext, route: SettingsViewRoute) {
                     },
                     onClick = {
                         context.navController.navigate(AppearanceSettingsViewRoute)
+                    },
+                )
+                HorizontalDivider()
+                SettingsSimpleTile(
+                    icon = {
+                        Icon(Icons.Filled.Swipe, null)
+                    },
+                    title = {
+                        Text(AppStrings.SwipeActions)
+                    },
+                    onClick = {
+                        context.navController.navigate(SwipeActionsSettingsViewRoute)
                     },
                 )
                 HorizontalDivider()

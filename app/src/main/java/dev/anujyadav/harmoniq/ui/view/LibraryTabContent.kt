@@ -7,6 +7,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,6 +36,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ProvideTextStyle
@@ -59,7 +65,12 @@ import coil.compose.AsyncImage
 import dev.anujyadav.harmoniq.services.groove.Playlist
 import dev.anujyadav.harmoniq.ui.components.AlbumTile
 import dev.anujyadav.harmoniq.ui.components.ArtistTile
+import dev.anujyadav.harmoniq.ui.components.PlaylistActionsHost
 import dev.anujyadav.harmoniq.ui.components.PlaylistDropdownMenu
+import dev.anujyadav.harmoniq.ui.components.PlaylistSwipeActionsBox
+import dev.anujyadav.harmoniq.ui.components.ReorderDragHandle
+import dev.anujyadav.harmoniq.ui.components.SeeAllButton
+import dev.anujyadav.harmoniq.ui.components.ReorderableItemDefaults
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 import dev.anujyadav.harmoniq.ui.view.home.AlbumArtistsView
 import dev.anujyadav.harmoniq.ui.view.home.AlbumsView
@@ -70,12 +81,14 @@ import dev.anujyadav.harmoniq.ui.view.home.GenresView
 import dev.anujyadav.harmoniq.ui.view.home.PlaylistsView
 import dev.anujyadav.harmoniq.ui.view.home.SongsView
 import dev.anujyadav.harmoniq.ui.view.home.TreeView
+import dev.anujyadav.harmoniq.ui.view.home.rememberHomePlaylists
 import dev.anujyadav.harmoniq.ui.view.navigation.LibraryPill
 import dev.anujyadav.harmoniq.utils.AppStrings
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import dev.anujyadav.harmoniq.ui.components.ProvideSwipeScope
 
 // Full-screen route wrappers for library categories
 @Serializable
@@ -109,11 +122,22 @@ fun LibraryTabContent(context: ViewContext) {
     // pager is the single source of truth for the selected pill. syncing it two-way
     // with a separate state cancels long jumps midway (each intermediate page
     // re-targets the scroll), so pills only drive the pager and read from it.
+    val pendingPill by context.libraryNavigator.pendingPill.collectAsState()
     val pagerState = rememberPagerState(
-        initialPage = libraryPillOrder.indexOf(LibraryPill.ForYou).coerceAtLeast(0),
+        // opening the library from elsewhere starts directly on the requested pill
+        initialPage = libraryPillOrder.indexOf(pendingPill ?: LibraryPill.ForYou).coerceAtLeast(0),
         pageCount = { libraryPillOrder.size }
     )
     val selectedPill = libraryPillOrder.getOrNull(pagerState.targetPage)
+
+    LaunchedEffect(pendingPill) {
+        val pill = pendingPill ?: return@LaunchedEffect
+        val page = libraryPillOrder.indexOf(pill)
+        if (page != -1 && pagerState.currentPage != page) {
+            pagerState.scrollToPage(page)
+        }
+        context.libraryNavigator.consume(pill)
+    }
     val selectPill: (LibraryPill) -> Unit = { pill ->
         val page = libraryPillOrder.indexOf(pill)
         if (page != -1) {
@@ -168,7 +192,11 @@ fun LibraryTabContent(context: ViewContext) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = { showReorderSheet = false },
-            sheetState = sheetState
+            sheetState = sheetState,
+            // keeps the sheet below the status bar and display cutout when it grows tall
+            modifier = Modifier.windowInsetsPadding(
+                WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
+            ),
         ) {
             val list = remember(libraryPillOrder) { libraryPillOrder.toMutableStateList() }
             val lazyListState = rememberLazyListState()
@@ -178,32 +206,24 @@ fun LibraryTabContent(context: ViewContext) {
                 context.symphony.settings.libraryPillOrder.setValue(list.toList())
             }
 
+            Text(
+                AppStrings.ReorderTabs,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+            )
             LazyColumn(
                 state = lazyListState,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxWidth()
             ) {
                 items(list, key = { it.name }) { pill ->
                     ReorderableItem(reorderState, key = pill.name) { isDragging ->
                         ListItem(
+                            colors = ListItemDefaults.colors(
+                                containerColor = ReorderableItemDefaults.containerColor(isDragging)
+                            ),
                             headlineContent = { Text(pill.label) },
-                            leadingContent = {
-                                IconButton(
-                                    onClick = {},
-                                    modifier = Modifier.draggableHandle(
-                                        onDragStarted = {},
-                                        onDragStopped = {}
-                                    ),
-                                    enabled = pill != LibraryPill.ForYou
-                                ) {
-                                    Icon(
-                                        Icons.Filled.Menu,
-                                        contentDescription = null,
-                                        tint = if (pill == LibraryPill.ForYou) 
-                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f) 
-                                        else MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
+                            leadingContent = { Icon(pill.icon, null) },
+                            trailingContent = { ReorderDragHandle() },
                         )
                     }
                 }
@@ -252,7 +272,7 @@ private fun PillNavRow(
         }
         item {
             IconButton(onClick = onReorderClick) {
-                Icon(Icons.Filled.Menu, contentDescription = "Reorder Pills")
+                Icon(Icons.Filled.Menu, contentDescription = AppStrings.ReorderTabs)
             }
         }
     }
@@ -273,17 +293,19 @@ private fun LibraryPillContent(
     onPillChange: (LibraryPill) -> Unit
 ) {
     Box(modifier = modifier) {
-        when (pill) {
-            LibraryPill.ForYou -> LibraryForYouContent(context, onPillChange)
-            LibraryPill.Songs -> SongsView(context)
-            LibraryPill.Albums -> AlbumsView(context)
-            LibraryPill.Artists -> ArtistsView(context)
-            LibraryPill.AlbumArtists -> AlbumArtistsView(context)
-            LibraryPill.Genres -> GenresView(context)
-            LibraryPill.Playlists -> PlaylistsView(context)
-            LibraryPill.Browser -> BrowserView(context)
-            LibraryPill.Folders -> FoldersView(context)
-            LibraryPill.Tree -> TreeView(context)
+        ProvideSwipeScope(songScope = pill.songSwipeScope) {
+            when (pill) {
+                LibraryPill.ForYou -> LibraryForYouContent(context, onPillChange)
+                LibraryPill.Songs -> SongsView(context)
+                LibraryPill.Albums -> AlbumsView(context)
+                LibraryPill.Artists -> ArtistsView(context)
+                LibraryPill.AlbumArtists -> AlbumArtistsView(context)
+                LibraryPill.Genres -> GenresView(context)
+                LibraryPill.Playlists -> PlaylistsView(context)
+                LibraryPill.Browser -> BrowserView(context)
+                LibraryPill.Folders -> FoldersView(context)
+                LibraryPill.Tree -> TreeView(context)
+            }
         }
     }
 }
@@ -293,20 +315,9 @@ private fun LibraryForYouContent(
     context: ViewContext,
     onPillChange: (LibraryPill) -> Unit
 ) {
-    val playlistIds by context.symphony.groove.playlist.all.collectAsState()
     val albumIds by context.symphony.groove.album.all.collectAsState()
     val artistNames by context.symphony.groove.artist.all.collectAsState()
-
-    val recentPlaylists by remember(playlistIds) {
-        derivedStateOf {
-            val allPlaylists = context.symphony.groove.playlist.get(playlistIds.toList())
-            val favorites = allPlaylists.find { context.symphony.groove.playlist.isFavoritesPlaylist(it) }
-            val userPlaylists = allPlaylists.filter { !context.symphony.groove.playlist.isBuiltInPlaylist(it) }
-                .sortedByDescending { it.id.substringBefore('.').toLongOrNull() ?: 0L }
-                .take(6)
-            listOfNotNull(favorites) + userPlaylists
-        }
-    }
+    val recentPlaylists = rememberHomePlaylists(context)
 
     val recentAlbums by remember(albumIds) {
         derivedStateOf {
@@ -337,6 +348,12 @@ private fun LibraryForYouContent(
                     recentPlaylists.forEach { playlist ->
                         PlaylistRowItem(context, playlist)
                     }
+                }
+                SeeAllButton(
+                    AppStrings.SeeAllPlaylists,
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                ) {
+                    onPillChange(LibraryPill.Playlists)
                 }
             }
         }
@@ -480,50 +497,53 @@ private fun PlaylistRowItem(context: ViewContext, playlist: Playlist) {
     var showOptionsMenu by remember { mutableStateOf(false) }
     val updateId by context.symphony.groove.playlist.updateId.collectAsState()
 
-    ListItem(
-        modifier = Modifier.clickable {
-            context.navController.navigate(PlaylistViewRoute(playlist.id))
-        },
-        headlineContent = {
-            Text(
-                playlist.title,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-            )
-        },
-        supportingContent = {
-            Text(
-                "Playlist",
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-            )
-        },
-        leadingContent = {
-            AsyncImage(
-                remember(updateId, playlist) {
-                    playlist.createArtworkImageRequest(context.symphony).build()
+    PlaylistActionsHost(context, playlist) { actions ->
+        PlaylistSwipeActionsBox(context, actions) {
+            ListItem(
+                modifier = Modifier.clickable {
+                    context.navController.navigate(PlaylistViewRoute(playlist.id))
                 },
-                null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(4.dp))
-            )
-        },
-        trailingContent = {
-            Box {
-                IconButton(onClick = { showOptionsMenu = true }) {
-                    Icon(Icons.Filled.MoreVert, null)
+                headlineContent = {
+                    Text(
+                        playlist.title,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                },
+                supportingContent = {
+                    Text(
+                        "Playlist",
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                },
+                leadingContent = {
+                    AsyncImage(
+                        remember(updateId, playlist) {
+                            playlist.createArtworkImageRequest(context.symphony).build()
+                        },
+                        null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                    )
+                },
+                trailingContent = {
+                    Box {
+                        IconButton(onClick = { showOptionsMenu = true }) {
+                            Icon(Icons.Filled.MoreVert, null)
+                        }
+                        PlaylistDropdownMenu(
+                            actions,
+                            expanded = showOptionsMenu,
+                            onDismissRequest = { showOptionsMenu = false }
+                        )
+                    }
                 }
-                PlaylistDropdownMenu(
-                    context = context,
-                    playlist = playlist,
-                    expanded = showOptionsMenu,
-                    onDismissRequest = { showOptionsMenu = false }
-                )
-            }
+            )
         }
-    )
+    }
 }
 
 @Composable

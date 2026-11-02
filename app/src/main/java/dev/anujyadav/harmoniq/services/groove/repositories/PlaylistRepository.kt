@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import dev.anujyadav.harmoniq.services.groove.PlaylistCoverStore
 
 class PlaylistRepository(private val symphony: Symphony) {
     enum class SortBy {
@@ -24,8 +25,17 @@ class PlaylistRepository(private val symphony: Symphony) {
         TRACKS_COUNT,
     }
 
+    enum class HomeSortBy {
+        CUSTOM,
+        RECENTLY_PLAYED,
+        RECENTLY_CREATED,
+        TITLE,
+        TRACKS_COUNT,
+    }
+
     private val cache = ConcurrentHashMap<String, Playlist>()
     internal val idGenerator = KeyGenerator.TimeIncremental()
+    val covers = PlaylistCoverStore(symphony)
     private val searcher = FuzzySearcher<String>(
         options = listOf(FuzzySearchOption({ v -> get(v)?.title?.let { compareString(it) } }))
     )
@@ -165,6 +175,8 @@ class PlaylistRepository(private val symphony: Symphony) {
         _all.update {
             it - id
         }
+        forgetPlaylist(id)
+        covers.delete(id)
         emitUpdateId()
         emitCount()
         symphony.groove.coroutineScope.launch {
@@ -213,7 +225,8 @@ class PlaylistRepository(private val symphony: Symphony) {
         update(favorites.id, songIds.mutate { remove(songId) })
     }
 
-    fun isFavoritesPlaylist(playlist: Playlist) = playlist.id == FAVORITE_PLAYLIST
+    fun isFavoritesId(id: String) = id == FAVORITE_PLAYLIST
+    fun isFavoritesPlaylist(playlist: Playlist) = isFavoritesId(playlist.id)
     fun isBuiltInPlaylist(playlist: Playlist) = isFavoritesPlaylist(playlist)
 
     fun savePlaylistToUri(playlist: Playlist, uri: Uri) {
@@ -233,6 +246,78 @@ class PlaylistRepository(private val symphony: Symphony) {
         }
     }
 
+    /**
+     * Uses the image at [uri] as the cover of playlist [id], returns whether it worked.
+     */
+    suspend fun setCover(id: String, uri: Uri) = try {
+        covers.save(id, uri)
+        emitUpdateId()
+        true
+    } catch (err: Exception) {
+        Logger.error("PlaylistRepository", "setting cover failed", err)
+        false
+    }
+
+    // goes back to the artwork of the first song
+    fun removeCover(id: String) {
+        covers.delete(id)
+        emitUpdateId()
+    }
+
+    fun hasCustomCover(id: String) = covers.has(id)
+
+    fun markPlayed(id: String) {
+        val lastPlayed = symphony.settings.playlistLastPlayed.value.toMutableMap()
+        lastPlayed[id] = System.currentTimeMillis()
+        symphony.settings.playlistLastPlayed.setValue(lastPlayed)
+    }
+
+    /**
+     * Playlists shown as shortcuts on the home screen and in the library's "for you"
+     * section. Favorites never counts towards the limit.
+     */
+    fun getHomePlaylists(): List<Playlist> {
+        val settings = symphony.settings
+        val limit = settings.homePlaylistsLimit.value.coerceIn(0, HOME_PLAYLISTS_MAX)
+        val showFavorites = settings.homeShowFavorites.value
+        if (settings.homePlaylistsSortBy.value == HomeSortBy.CUSTOM) {
+            var count = 0
+            return get(settings.homePlaylistIds.value).filter {
+                when {
+                    isFavoritesPlaylist(it) -> showFavorites
+                    else -> count++ < limit
+                }
+            }
+        }
+        val playlistIds = values().filterNot { isBuiltInPlaylist(it) }.map { it.id }
+        val lastPlayed = settings.playlistLastPlayed.value
+        val sortedIds = when (settings.homePlaylistsSortBy.value) {
+            // never played playlists fall back to the newest ones
+            HomeSortBy.RECENTLY_PLAYED -> playlistIds.sortedWith(
+                compareByDescending<String> { lastPlayed[it] ?: 0L }.thenByDescending { createdAt(it) }
+            )
+
+            HomeSortBy.TITLE -> sort(playlistIds, SortBy.TITLE, false)
+            HomeSortBy.TRACKS_COUNT -> sort(playlistIds, SortBy.TRACKS_COUNT, true)
+            else -> playlistIds.sortedByDescending { createdAt(it) }
+        }
+        val favorites = getFavorites().takeIf { showFavorites }
+        return listOfNotNull(favorites) + get(sortedIds.take(limit))
+    }
+
+    // generated ids start with their creation timestamp
+    private fun createdAt(id: String) = id.substringBefore('.').toLongOrNull() ?: 0L
+
+    private fun forgetPlaylist(id: String) {
+        val settings = symphony.settings
+        settings.playlistLastPlayed.value.let {
+            if (it.containsKey(id)) settings.playlistLastPlayed.setValue(it - id)
+        }
+        settings.homePlaylistIds.value.let {
+            if (it.contains(id)) settings.homePlaylistIds.setValue(it - id)
+        }
+    }
+
     internal fun onScanFinish() {
         _favorites.update {
             getFavorites().getSongIds(symphony)
@@ -242,5 +327,7 @@ class PlaylistRepository(private val symphony: Symphony) {
 
     companion object {
         private const val FAVORITE_PLAYLIST = "favorites"
+        const val HOME_PLAYLISTS_MAX = 10
+        const val HOME_PLAYLISTS_DEFAULT_LIMIT = 4
     }
 }

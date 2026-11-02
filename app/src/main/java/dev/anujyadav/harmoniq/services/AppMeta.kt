@@ -20,8 +20,17 @@ object AppMeta {
         "https://github.com/$githubRepositoryOwner/$githubRepositoryName"
 
     const val version = "v${BuildConfig.VERSION_NAME}"
+    const val buildType = BuildConfig.BUILD_TYPE
     var latestVersion: String? = null
-    const val githubLatestReleaseUrl = "$githubRepositoryUrl/releases/latest"
+    const val githubReleasesUrl = "$githubRepositoryUrl/releases"
+    const val githubLatestReleaseUrl = "$githubReleasesUrl/latest"
+    const val licenseName = "AGPL-3.0"
+    const val licenseUrl = "$githubRepositoryUrl/blob/HEAD/LICENSE"
+    const val originalProjectName = "Symphony"
+    const val originalProjectAuthor = "zyrouge"
+    const val originalProjectUrl = "https://github.com/zyrouge/symphony"
+    const val taglibName = "TagLib"
+    const val taglibUrl = "https://taglib.org"
     const val githubIssuesUrl = "$githubRepositoryUrl/issues"
     const val discordUrl = ""
     const val redditUrl = ""
@@ -33,6 +42,9 @@ object AppMeta {
     const val playStoreUrl = ""
 
     fun isNightlyBuild() = version.contains("-nightly")
+
+    // build suffixes such as "-debug" are not part of release tags
+    fun isUpdateAvailable(latest: String) = latest != version && !version.startsWith("$latest-")
 
     fun fetchLatestVersion() = when {
         isNightlyBuild() -> fetchLatestNightlyVersion()

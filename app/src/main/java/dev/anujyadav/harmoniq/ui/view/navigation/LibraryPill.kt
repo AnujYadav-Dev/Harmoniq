@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.ui.graphics.vector.ImageVector
 import dev.anujyadav.harmoniq.services.groove.Groove
 import dev.anujyadav.harmoniq.utils.AppStrings
+import dev.anujyadav.harmoniq.ui.components.SongSwipeScope
 
 enum class LibraryPill(
     val icon: ImageVector,
@@ -70,4 +71,19 @@ enum class LibraryPill(
         label = AppStrings.Tree,
         countProvider = null,
     );
+
+    // swipe configuration used by the song rows this pill shows
+    val songSwipeScope
+        get() = when (this) {
+            Albums, Artists, AlbumArtists, Genres -> SongSwipeScope.Collections
+            Browser, Folders, Tree -> SongSwipeScope.Folders
+            ForYou, Songs, Playlists -> SongSwipeScope.Songs
+        }
+
+    companion object {
+        // order used until the user reorders the tabs, new pills not listed here go last
+        val defaultOrder = listOf(ForYou, Playlists).let { pinned ->
+            pinned + entries.filterNot { it in pinned }
+        }
+    }
 }

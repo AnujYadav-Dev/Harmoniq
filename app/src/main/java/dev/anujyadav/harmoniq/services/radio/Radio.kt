@@ -1,6 +1,10 @@
 ﻿package dev.anujyadav.harmoniq.services.radio
 
+import android.os.Handler
+import android.os.Looper
 import dev.anujyadav.harmoniq.Symphony
+import dev.anujyadav.harmoniq.services.groove.Song
+import dev.anujyadav.harmoniq.utils.DocumentFileX
 import dev.anujyadav.harmoniq.utils.Eventer
 import dev.anujyadav.harmoniq.utils.Logger
 import java.time.Instant
@@ -36,6 +40,14 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
         }
     }
 
+    data class PlaybackError(val songId: String, val reason: Reason) {
+        enum class Reason {
+            // file was deleted, moved or its access permission was revoked
+            SongUnavailable,
+            PlaybackFailed,
+        }
+    }
+
     data class SleepTimer(
         val duration: Long,
         val endsAt: Long,
@@ -61,6 +73,8 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
     val currentPitch get() = player?.pitch ?: RadioPlayer.DEFAULT_PITCH
     val audioSessionId get() = player?.audioSessionId
     val onPlaybackPositionUpdate = Eventer<RadioPlayer.PlaybackPosition>()
+    val onPlaybackError = Eventer<PlaybackError>()
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     var persistedSpeed = RadioPlayer.DEFAULT_SPEED
     var persistedPitch = RadioPlayer.DEFAULT_PITCH
@@ -102,7 +116,8 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
             queue.currentSongIndex = options.index
             player = nextPlayer?.takeIf {
                 when {
-                    it.id == song.id -> true
+                    // a preloaded player may have already failed while preparing
+                    it.id == song.id && it.state != RadioPlayer.State.Destroyed -> true
                     else -> {
                         it.destroy()
                         false
@@ -137,6 +152,7 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
                     // happens when change playback params fail, we skip it since its non-critical
                     what == 1 && extra == -22 -> onSongFinish(SongFinishSource.Finish)
                     else -> {
+                        dispatchPlaybackError(song)
                         queue.remove(queue.currentSongIndex)
                         onSongFinish(SongFinishSource.Exception)
                     }
@@ -151,8 +167,24 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
                 "skipping song ${queue.currentSongId} (${queue.currentSongIndex})",
                 err,
             )
-            queue.remove(queue.currentSongIndex)
+            dispatchPlaybackError(song)
+            // removing the current song plays the next one, so it is posted to avoid
+            // deep recursion when many consecutive songs in the queue are unavailable
+            val failedIndex = queue.currentSongIndex
+            mainHandler.post {
+                if (queue.getSongIdAt(failedIndex) == song.id) {
+                    queue.remove(failedIndex)
+                }
+            }
         }
+    }
+
+    private fun dispatchPlaybackError(song: Song) {
+        val reason = when {
+            DocumentFileX.exists(symphony.applicationContext, song.uri) -> PlaybackError.Reason.PlaybackFailed
+            else -> PlaybackError.Reason.SongUnavailable
+        }
+        onPlaybackError.dispatch(PlaybackError(song.id, reason))
     }
 
     private fun prepareNextPlayer() {

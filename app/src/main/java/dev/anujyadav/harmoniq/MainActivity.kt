@@ -8,6 +8,7 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import dev.anujyadav.harmoniq.ui.theme.SplashTheme
 import dev.anujyadav.harmoniq.ui.view.BaseView
 import dev.anujyadav.harmoniq.utils.Logger
 
@@ -36,9 +37,9 @@ class MainActivity : ComponentActivity() {
         gSymphony = symphony
         symphony.emitActivityReady()
 
-        if (!symphony.settings.useMaterialYou.value && symphony.settings.randomizePrimaryColor.value) {
-            val randomColor = dev.anujyadav.harmoniq.ui.theme.PrimaryThemeColor.entries.random()
-            symphony.settings.primaryColor.setValue(randomColor.name)
+        // only on a fresh start, not when the activity is recreated from saved state
+        if (savedInstanceState == null) {
+            SplashTheme.startSession(this, symphony.settings)
         }
         attachHandlers()
 
@@ -53,7 +54,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
-        gSymphony?.emitActivityPause()
+        gSymphony?.let {
+            // picks up appearance changes made during this session
+            SplashTheme.registerForNextLaunch(this, it.settings)
+            it.emitActivityPause()
+        }
     }
 
     override fun onDestroy() {

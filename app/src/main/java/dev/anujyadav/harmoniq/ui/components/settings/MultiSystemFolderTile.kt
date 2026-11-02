@@ -21,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -64,84 +65,110 @@ fun SettingsMultiSystemFolderTile(
     }
 
     if (showDialog) {
-        val values = remember { initialValues.toMutableStateList() }
-        val pickFolderLauncher = rememberLauncherForActivityResult(
-            ActivityResultContracts.OpenDocumentTree()
-        ) { uri ->
-            uri?.let { _ ->
-                ActivityUtils.makePersistableReadableUri(context.symphony.applicationContext, uri)
+        SettingsMultiSystemFolderDialog(
+            context,
+            title = title,
+            initialValues = initialValues,
+            onChange = onChange,
+            onDismissRequest = { showDialog = false },
+        )
+    }
+}
+
+@Composable
+fun SettingsMultiSystemFolderDialog(
+    context: ViewContext,
+    title: @Composable () -> Unit,
+    initialValues: Set<Uri>,
+    onChange: (Set<Uri>) -> Unit,
+    onDismissRequest: () -> Unit,
+    pickFolderIfEmpty: Boolean = false,
+) {
+    val values = remember { initialValues.toMutableStateList() }
+    val pickFolderLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        uri?.let { _ ->
+            ActivityUtils.makePersistableReadableUri(context.symphony.applicationContext, uri)
+            if (!values.contains(uri)) {
                 values.add(uri)
             }
         }
+    }
 
-        // TODO: workaround for dialog resize bug
-        //       https://issuetracker.google.com/issues/221643630
-        key(values.size) {
-            ScaffoldDialog(
-                onDismissRequest = {
-                    onChange(values.toSet())
-                    showDialog = false
-                },
-                title = title,
-                contentHeight = ScaffoldDialogDefaults.PreferredMaxHeight,
-                content = {
-                    val lazyListState = rememberLazyListState()
+    LaunchedEffect(Unit) {
+        if (pickFolderIfEmpty && values.isEmpty()) {
+            pickFolderLauncher.launch(null)
+        }
+    }
 
-                    LazyColumn(
-                        state = lazyListState,
-                        modifier = Modifier
-                            .padding(top = 8.dp)
-                            .drawScrollBar(lazyListState),
-                    ) {
-                        itemsIndexed(values) { i, x ->
-                            Card(
-                                colors = SettingsTileDefaults.cardColors(),
-                                shape = MaterialTheme.shapes.small,
-                                modifier = Modifier.fillMaxWidth(),
-                                onClick = {},
+    // TODO: workaround for dialog resize bug
+    //       https://issuetracker.google.com/issues/221643630
+    key(values.size) {
+        ScaffoldDialog(
+            onDismissRequest = {
+                onChange(values.toSet())
+                onDismissRequest()
+            },
+            title = title,
+            contentHeight = ScaffoldDialogDefaults.PreferredMaxHeight,
+            content = {
+                val lazyListState = rememberLazyListState()
+
+                LazyColumn(
+                    state = lazyListState,
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .drawScrollBar(lazyListState),
+                ) {
+                    itemsIndexed(values) { i, x ->
+                        Card(
+                            colors = SettingsTileDefaults.cardColors(),
+                            shape = MaterialTheme.shapes.small,
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {},
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(
+                                    start = 20.dp,
+                                    end = 8.dp,
+                                ),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(
-                                        start = 20.dp,
-                                        end = 8.dp,
-                                    ),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(x.toString(), modifier = Modifier.weight(1f))
-                                    IconButton(onClick = { values.removeAt(i) }) {
-                                        Icon(Icons.Filled.Delete, null)
-                                    }
+                                Text(x.toString(), modifier = Modifier.weight(1f))
+                                IconButton(onClick = { values.removeAt(i) }) {
+                                    Icon(Icons.Filled.Delete, null)
                                 }
                             }
                         }
                     }
-                },
-                actions = {
-                    TextButton(
-                        onClick = {
-                            pickFolderLauncher.launch(null)
-                        }
-                    ) {
-                        Text(AppStrings.AddFolder)
-                    }
-                    Spacer(modifier = Modifier.weight(1f))
-                    TextButton(
-                        onClick = {
-                            showDialog = false
-                        }
-                    ) {
-                        Text(AppStrings.Cancel)
-                    }
-                    TextButton(
-                        onClick = {
-                            onChange(values.toSet())
-                            showDialog = false
-                        }
-                    ) {
-                        Text(AppStrings.Done)
-                    }
                 }
-            )
-        }
+            },
+            actions = {
+                TextButton(
+                    onClick = {
+                        pickFolderLauncher.launch(null)
+                    }
+                ) {
+                    Text(AppStrings.AddFolder)
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                TextButton(
+                    onClick = {
+                        onDismissRequest()
+                    }
+                ) {
+                    Text(AppStrings.Cancel)
+                }
+                TextButton(
+                    onClick = {
+                        onChange(values.toSet())
+                        onDismissRequest()
+                    }
+                ) {
+                    Text(AppStrings.Done)
+                }
+            }
+        )
     }
 }

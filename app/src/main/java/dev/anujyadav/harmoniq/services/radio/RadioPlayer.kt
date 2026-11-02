@@ -107,7 +107,8 @@ class RadioPlayer(val symphony: Symphony, val id: String, val uri: Uri) {
         state = State.Destroyed
         destroyDurationTimer()
         symphony.groove.coroutineScope.launch {
-            unsafeMediaPlayer.stop()
+            // stop() is invalid in the error state, release() is valid in any state
+            runCatching { unsafeMediaPlayer.stop() }
             unsafeMediaPlayer.release()
         }
     }

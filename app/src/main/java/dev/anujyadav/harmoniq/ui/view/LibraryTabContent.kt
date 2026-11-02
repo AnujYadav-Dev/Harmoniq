@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -42,7 +43,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
@@ -71,6 +72,7 @@ import dev.anujyadav.harmoniq.ui.view.home.SongsView
 import dev.anujyadav.harmoniq.ui.view.home.TreeView
 import dev.anujyadav.harmoniq.ui.view.navigation.LibraryPill
 import dev.anujyadav.harmoniq.utils.AppStrings
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -100,26 +102,24 @@ object FavoritesViewRoute
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun LibraryTabContent(context: ViewContext) {
-    var selectedPill by rememberSaveable { mutableStateOf(LibraryPill.ForYou) }
     val libraryPillOrder by context.symphony.settings.libraryPillOrder.flow.collectAsState()
     var showReorderSheet by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
+    // pager is the single source of truth for the selected pill. syncing it two-way
+    // with a separate state cancels long jumps midway (each intermediate page
+    // re-targets the scroll), so pills only drive the pager and read from it.
     val pagerState = rememberPagerState(
-        initialPage = libraryPillOrder.indexOf(selectedPill).coerceAtLeast(0),
+        initialPage = libraryPillOrder.indexOf(LibraryPill.ForYou).coerceAtLeast(0),
         pageCount = { libraryPillOrder.size }
     )
-
-    LaunchedEffect(pagerState.currentPage) {
-        val newPill = libraryPillOrder.getOrNull(pagerState.currentPage)
-        if (newPill != null && newPill != selectedPill) {
-            selectedPill = newPill
-        }
-    }
-
-    LaunchedEffect(selectedPill) {
-        val targetPage = libraryPillOrder.indexOf(selectedPill)
-        if (targetPage != -1 && pagerState.currentPage != targetPage) {
-            pagerState.animateScrollToPage(targetPage)
+    val selectedPill = libraryPillOrder.getOrNull(pagerState.targetPage)
+    val selectPill: (LibraryPill) -> Unit = { pill ->
+        val page = libraryPillOrder.indexOf(pill)
+        if (page != -1) {
+            coroutineScope.launch {
+                pagerState.animateScrollToPage(page)
+            }
         }
     }
 
@@ -146,7 +146,7 @@ fun LibraryTabContent(context: ViewContext) {
             context = context,
             pills = libraryPillOrder,
             selectedPill = selectedPill,
-            onPillSelected = { selectedPill = it },
+            onPillSelected = selectPill,
             onReorderClick = { showReorderSheet = true }
         )
         HorizontalPager(
@@ -158,7 +158,7 @@ fun LibraryTabContent(context: ViewContext) {
                 context = context,
                 pill = pillForPage,
                 modifier = Modifier.fillMaxSize(),
-                onPillChange = { selectedPill = it }
+                onPillChange = selectPill
             )
         }
     }
@@ -216,18 +216,28 @@ fun LibraryTabContent(context: ViewContext) {
 private fun PillNavRow(
     context: ViewContext,
     pills: List<LibraryPill>,
-    selectedPill: LibraryPill,
+    selectedPill: LibraryPill?,
     onPillSelected: (LibraryPill) -> Unit,
     onReorderClick: () -> Unit
 ) {
+    val rowState = rememberLazyListState()
+    val selectedIndex = selectedPill?.let { pills.indexOf(it) } ?: -1
+
+    LaunchedEffect(selectedIndex) {
+        if (selectedIndex != -1 && !rowState.isItemFullyVisible(selectedIndex)) {
+            rowState.animateScrollToItem(selectedIndex)
+        }
+    }
+
     LazyRow(
+        state = rowState,
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        items(pills) { pill ->
+        items(pills, key = { it.name }) { pill ->
             val count = pill.countProvider?.invoke(context.symphony.groove)
             FilterChip(
                 selected = selectedPill == pill,
@@ -246,6 +256,13 @@ private fun PillNavRow(
             }
         }
     }
+}
+
+private fun LazyListState.isItemFullyVisible(index: Int): Boolean {
+    val info = layoutInfo
+    val item = info.visibleItemsInfo.find { it.index == index } ?: return false
+    return item.offset >= info.viewportStartOffset &&
+            item.offset + item.size <= info.viewportEndOffset
 }
 
 @Composable

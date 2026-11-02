@@ -70,6 +70,12 @@ data class DocumentFileX(
                 }
             }
 
+        fun exists(context: Context, uri: Uri) = runCatching {
+            context.contentResolver
+                .query(uri, arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID), null, null, null)
+                ?.use { it.count > 0 } == true
+        }.getOrDefault(false)
+
         fun fromTreeUri(context: Context, treeUri: Uri) = fromSingleUri(
             context,
             DocumentsContract.buildDocumentUriUsingTree(

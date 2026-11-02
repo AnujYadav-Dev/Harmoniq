@@ -5,7 +5,11 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination
 import androidx.navigation.NavGraphBuilder
@@ -15,6 +19,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import dev.anujyadav.harmoniq.MainActivity
 import dev.anujyadav.harmoniq.Symphony
+import dev.anujyadav.harmoniq.services.radio.Radio
+import dev.anujyadav.harmoniq.ui.components.SongUnavailableDialog
 import dev.anujyadav.harmoniq.ui.helpers.ScaleTransition
 import dev.anujyadav.harmoniq.ui.helpers.SlideTransition
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
@@ -43,6 +49,17 @@ fun BaseView(symphony: Symphony, activity: MainActivity) {
             activity = activity,
             navController = navController,
         )
+    }
+    var playbackError by remember { mutableStateOf<Radio.PlaybackError?>(null) }
+
+    DisposableEffect(symphony) {
+        val unsubscribe = symphony.radio.onPlaybackError.subscribe { error ->
+            // keep the first error visible when several queued songs fail in a row
+            if (playbackError == null) {
+                playbackError = error
+            }
+        }
+        onDispose { unsubscribe() }
     }
 
     SymphonyTheme(context) {
@@ -128,6 +145,14 @@ fun BaseView(symphony: Symphony, activity: MainActivity) {
                     TreeFullView(context)
                 }
             }
+        }
+
+        playbackError?.let { error ->
+            SongUnavailableDialog(
+                context = context,
+                error = error,
+                onDismissRequest = { playbackError = null },
+            )
         }
     }
 }

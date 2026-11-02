@@ -81,6 +81,17 @@ class Groove(private val symphony: Symphony) : Symphony.Hooks {
         }
     }
 
+    // stops playback and re-scans everything, used when the library sources change
+    fun refreshLibrary(clearCache: Boolean = false) {
+        symphony.radio.stop()
+        fetch(
+            FetchOptions(
+                resetInMemoryCache = true,
+                resetPersistentCache = clearCache,
+            )
+        )
+    }
+
     override fun onSymphonyReady() {
         coroutineScope.launch {
             fetch()

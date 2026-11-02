@@ -273,6 +273,9 @@ class Settings(private val symphony: Symphony) {
     val pauseOnHeadphonesDisconnect = BooleanEntry("pause_on_headphones_disconnect", true)
     val primaryColor = NullableStringEntry("primary_color")
     val randomizePrimaryColor = BooleanEntry("randomize_primary_color", false)
+
+    // pre-picked random color for the next launch, so its splash screen can match
+    val nextPrimaryColor = NullableStringEntry("next_primary_color")
     val fadePlaybackDuration = FloatEntry("fade_playback_duration", 1f)
     val forYouContents = EnumSetEntry(
         "for_you_contents",

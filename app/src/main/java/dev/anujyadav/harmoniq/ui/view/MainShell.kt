@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import dev.anujyadav.harmoniq.ui.components.MediaFoldersDialog
 import dev.anujyadav.harmoniq.ui.components.NewPlaylistDialog
 import dev.anujyadav.harmoniq.ui.components.NowPlayingBottomBar
 import dev.anujyadav.harmoniq.ui.helpers.ScaleTransition
@@ -48,6 +50,7 @@ fun MainShellView(context: ViewContext) {
     val currentTab by context.symphony.settings.lastMainTab.flow.collectAsState()
     val showBottomNavLabels by context.symphony.settings.showBottomNavLabels.flow.collectAsState()
     var showNewPlaylistDialog by remember { mutableStateOf(false) }
+    var showMediaFoldersDialog by remember { mutableStateOf(false) }
 
     if (showNewPlaylistDialog) {
         NewPlaylistDialog(
@@ -57,6 +60,13 @@ fun MainShellView(context: ViewContext) {
                 context.symphony.groove.playlist.add(playlist)
             },
             onDismissRequest = { showNewPlaylistDialog = false }
+        )
+    }
+
+    if (showMediaFoldersDialog) {
+        MediaFoldersDialog(
+            context = context,
+            onDismissRequest = { showMediaFoldersDialog = false }
         )
     }
 
@@ -101,6 +111,11 @@ fun MainShellView(context: ViewContext) {
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = { showMediaFoldersDialog = true }
+                    ) {
+                        Icon(Icons.Filled.CreateNewFolder, AppStrings.ManageMediaFolders)
+                    }
                     IconButton(
                         onClick = { showNewPlaylistDialog = true }
                     ) {

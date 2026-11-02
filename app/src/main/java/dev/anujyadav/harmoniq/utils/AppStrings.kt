@@ -199,6 +199,11 @@ object AppStrings {
     const val Id = "ID"
     const val DiscTotal = "Disc total"
     const val Encoder = "Encoder"
+    const val SongUnavailable = "Song unavailable"
+    const val PlaybackFailed = "Playback failed"
+    const val Ok = "OK"
+    const val RescanLibrary = "Re-scan library"
+    const val ManageMediaFolders = "Manage media folders"
     const val HintAddMediaFolders =
         "Hint: You can add media folders through settings!"
     const val VBR = "VBR"
@@ -263,4 +268,8 @@ object AppStrings {
     fun UnknownAlbumX(x: String) = "Unknown album ($x)"
     fun CopiedXToClipboard(x: String) = "Copied '$x' to clipboard"
     fun XChannels(x: String) = "$x channels"
+    fun SongXMayHaveBeenDeletedOrMoved(x: String) =
+        "\"$x\" could not be found. It may have been deleted or moved from your device storage, or folder access may have been revoked. It has been removed from the queue."
+    fun SongXCouldNotBePlayed(x: String) =
+        "\"$x\" could not be played. The file may be corrupted or in an unsupported format. It has been removed from the queue."
 }

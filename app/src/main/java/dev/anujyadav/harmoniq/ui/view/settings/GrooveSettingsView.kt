@@ -43,8 +43,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
-import dev.anujyadav.harmoniq.Symphony
-import dev.anujyadav.harmoniq.services.groove.Groove
 import dev.anujyadav.harmoniq.ui.components.AdaptiveSnackbar
 import dev.anujyadav.harmoniq.ui.components.IconButtonPlaceholder
 import dev.anujyadav.harmoniq.ui.components.TopAppBarMinimalTitle
@@ -141,7 +139,7 @@ fun GrooveSettingsView(context: ViewContext, route: GrooveSettingsViewRoute) {
                             initialValues = mediaFolders,
                             onChange = { values ->
                                 context.symphony.settings.mediaFolders.setValue(values)
-                                refreshMediaLibrary(context.symphony)
+                                context.symphony.groove.refreshLibrary()
                             }
                         )
                     }
@@ -165,7 +163,7 @@ fun GrooveSettingsView(context: ViewContext, route: GrooveSettingsViewRoute) {
                                     else -> value
                                 }
                             )
-                            refreshMediaLibrary(context.symphony)
+                            context.symphony.groove.refreshLibrary()
                         }
                     )
                     HorizontalDivider()
@@ -207,7 +205,7 @@ fun GrooveSettingsView(context: ViewContext, route: GrooveSettingsViewRoute) {
                         initialValues = blacklistFolders,
                         onChange = { values ->
                             context.symphony.settings.blacklistFolders.setValue(values)
-                            refreshMediaLibrary(context.symphony)
+                            context.symphony.groove.refreshLibrary()
                         }
                     )
                     HorizontalDivider()
@@ -223,7 +221,7 @@ fun GrooveSettingsView(context: ViewContext, route: GrooveSettingsViewRoute) {
                         initialValues = whitelistFolders,
                         onChange = { values ->
                             context.symphony.settings.whitelistFolders.setValue(values)
-                            refreshMediaLibrary(context.symphony)
+                            context.symphony.groove.refreshLibrary()
                         }
                     )
                     HorizontalDivider()
@@ -238,7 +236,7 @@ fun GrooveSettingsView(context: ViewContext, route: GrooveSettingsViewRoute) {
                         values = artistTagSeparators.toList(),
                         onChange = {
                             context.symphony.settings.artistTagSeparators.setValue(it.toSet())
-                            refreshMediaLibrary(context.symphony)
+                            context.symphony.groove.refreshLibrary()
                         },
                     )
                     HorizontalDivider()
@@ -253,7 +251,7 @@ fun GrooveSettingsView(context: ViewContext, route: GrooveSettingsViewRoute) {
                         values = genreTagSeparators.toList(),
                         onChange = {
                             context.symphony.settings.genreTagSeparators.setValue(it.toSet())
-                            refreshMediaLibrary(context.symphony)
+                            context.symphony.groove.refreshLibrary()
                         },
                     )
                     HorizontalDivider()
@@ -306,7 +304,7 @@ fun GrooveSettingsView(context: ViewContext, route: GrooveSettingsViewRoute) {
                             Text(AppStrings.ClearSongCache)
                         },
                         onClick = {
-                            refreshMediaLibrary(context.symphony, true)
+                            context.symphony.groove.refreshLibrary(clearCache = true)
                             coroutineScope.launch {
                                 snackbarHostState.showSnackbar(
                                     AppStrings.SongCacheCleared,
@@ -326,17 +324,6 @@ fun ImagePreserver.Quality.label(context: ViewContext) = when (this) {
     ImagePreserver.Quality.Medium -> AppStrings.Medium
     ImagePreserver.Quality.High -> AppStrings.High
     ImagePreserver.Quality.Loseless -> AppStrings.Loseless
-}
-
-private fun refreshMediaLibrary(symphony: Symphony, clearCache: Boolean = false) {
-    symphony.radio.stop()
-    symphony.groove.coroutineScope.launch {
-        val options = Groove.FetchOptions(
-            resetInMemoryCache = true,
-            resetPersistentCache = clearCache,
-        )
-        symphony.groove.fetch(options)
-    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)

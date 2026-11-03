@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import dev.anujyadav.harmoniq.services.Permissions
 import dev.anujyadav.harmoniq.services.Settings
 import dev.anujyadav.harmoniq.services.database.Database
+import dev.anujyadav.harmoniq.services.globalsearch.GlobalSearch
 import dev.anujyadav.harmoniq.services.groove.Groove
 import dev.anujyadav.harmoniq.services.radio.Radio
 
@@ -22,11 +23,12 @@ class Symphony(application: Application) : AndroidViewModel(application), Sympho
     val database = Database(this)
     val groove = Groove(this)
     val radio = Radio(this)
+    val globalSearch = GlobalSearch(this)
 
     val applicationContext get() = getApplication<Application>().applicationContext
     var closeApp: (() -> Unit)? = null
     private var isReady = false
-    private var hooks = listOf(this, radio, groove)
+    private var hooks = listOf(this, radio, groove, globalSearch)
 
     internal fun emitReady() {
         if (isReady) {

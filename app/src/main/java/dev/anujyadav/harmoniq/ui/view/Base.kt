@@ -21,6 +21,7 @@ import dev.anujyadav.harmoniq.MainActivity
 import dev.anujyadav.harmoniq.Symphony
 import dev.anujyadav.harmoniq.services.radio.Radio
 import dev.anujyadav.harmoniq.ui.components.SongUnavailableDialog
+import dev.anujyadav.harmoniq.ui.view.globalsearch.LibraryLinkPrompt
 import dev.anujyadav.harmoniq.ui.helpers.ScaleTransition
 import dev.anujyadav.harmoniq.ui.helpers.SlideTransition
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
@@ -30,6 +31,8 @@ import dev.anujyadav.harmoniq.ui.view.settings.AboutSettingsViewRoute
 import dev.anujyadav.harmoniq.ui.view.settings.AppearanceSettingsView
 import dev.anujyadav.harmoniq.ui.view.settings.AppearanceSettingsViewRoute
 import dev.anujyadav.harmoniq.ui.view.settings.GrooveSettingsView
+import dev.anujyadav.harmoniq.ui.view.settings.GlobalSearchSettingsView
+import dev.anujyadav.harmoniq.ui.view.settings.GlobalSearchSettingsViewRoute
 import dev.anujyadav.harmoniq.ui.view.settings.GrooveSettingsViewRoute
 import dev.anujyadav.harmoniq.ui.view.settings.MiniPlayerSettingsView
 import dev.anujyadav.harmoniq.ui.view.settings.MiniPlayerSettingsViewRoute
@@ -132,6 +135,9 @@ fun BaseView(symphony: Symphony, activity: MainActivity) {
                 baseComposable<SwipeActionsSettingsViewRoute> {
                     SwipeActionsSettingsView(context)
                 }
+                baseComposable<GlobalSearchSettingsViewRoute> {
+                    GlobalSearchSettingsView(context)
+                }
                 // Full-screen library category routes
                 baseComposable<SongsFullViewRoute> {
                     ProvideSwipeScope(songScope = LibraryPill.Songs.songSwipeScope) {
@@ -177,6 +183,10 @@ fun BaseView(symphony: Symphony, activity: MainActivity) {
                     }
                 }
             }
+        }
+
+        if (symphony.globalSearch.isAvailable) {
+            LibraryLinkPrompt(context)
         }
 
         playbackError?.let { error ->

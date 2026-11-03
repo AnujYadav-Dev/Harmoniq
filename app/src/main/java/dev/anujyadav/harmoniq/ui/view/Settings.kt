@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,6 +29,7 @@ import dev.anujyadav.harmoniq.ui.components.TopAppBarMinimalTitle
 import dev.anujyadav.harmoniq.ui.components.settings.SettingsSimpleTile
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 import dev.anujyadav.harmoniq.ui.view.settings.AppearanceSettingsViewRoute
+import dev.anujyadav.harmoniq.ui.view.settings.GlobalSearchSettingsViewRoute
 import dev.anujyadav.harmoniq.ui.view.settings.GrooveSettingsViewRoute
 import dev.anujyadav.harmoniq.ui.view.settings.MiniPlayerSettingsViewRoute
 import dev.anujyadav.harmoniq.ui.view.settings.NowPlayingSettingsViewRoute
@@ -96,6 +98,20 @@ fun SettingsView(context: ViewContext, route: SettingsViewRoute) {
                         )
                     },
                 )
+                if (context.symphony.globalSearch.isAvailable) {
+                    HorizontalDivider()
+                    SettingsSimpleTile(
+                        icon = {
+                            Icon(Icons.Filled.Public, null)
+                        },
+                        title = {
+                            Text(AppStrings.GlobalSearch)
+                        },
+                        onClick = {
+                            context.navController.navigate(GlobalSearchSettingsViewRoute)
+                        },
+                    )
+                }
                 HorizontalDivider()
                 SettingsSimpleTile(
                     icon = {

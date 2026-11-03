@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.app)
     alias(libs.plugins.android.kotlin)
@@ -6,6 +8,19 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.room)
 }
+
+// Global Search secrets come from the environment or local.properties, never from committed files.
+// A build-type specific key (e.g. HARMONIQ_SERVER_URL_CANARY) wins over the shared one.
+val localProperties = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use(::load)
+}
+
+fun secret(name: String): String = System.getenv(name) ?: localProperties.getProperty(name) ?: ""
+
+fun buildTypeSecret(name: String, buildType: String): String =
+    secret("${name}_${buildType.uppercase()}").ifEmpty { secret(name) }
+
+fun buildConfigString(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 android {
     namespace = "dev.anujyadav.harmoniq"
@@ -68,6 +83,12 @@ android {
         }
     }
 
+    buildTypes.configureEach {
+        listOf("HARMONIQ_SERVER_URL", "HARMONIQ_APP_TOKEN").forEach { key ->
+            buildConfigField("String", key, buildConfigString(buildTypeSecret(key, name)))
+        }
+    }
+
     splits {
         abi {
             isEnable = true
@@ -98,12 +119,22 @@ android {
         }
     }
 
+    lint {
+        // lifecycle 2.9.x (via android-youtube-player) ships this check built for a newer lint;
+        // it crashes AGP 8.7's lint. The app has no LiveData, so nothing is lost. Drop after an AGP upgrade.
+        disable += "NullSafeMutableLiveData"
+    }
+
     dependenciesInfo {
         includeInApk = false
         includeInBundle = false
     }
 
     testOptions {
+        // Robolectric (worker tests) needs the merged resources and manifest
+        unitTests.isIncludeAndroidResources = true
+        // plain JVM tests reach android.util.Log through the app Logger
+        unitTests.isReturnDefaultValues = true
         unitTests.all {
             it.useJUnitPlatform()
         }
@@ -131,6 +162,8 @@ dependencies {
     implementation(libs.media)
     implementation(libs.okhttp3)
     implementation("sh.calvin.reorderable:reorderable:2.1.1")
+    implementation(libs.work.runtime)
+    implementation(libs.youtube.player)
     ksp(libs.room.compiler)
     implementation(libs.room.ktx)
     implementation(libs.room.runtime)
@@ -139,4 +172,11 @@ dependencies {
     debugImplementation(libs.compose.ui.test.manifest)
 
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.okhttp3.mockwebserver)
+    testImplementation(libs.work.testing)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.junit)
+    // runs the JUnit 4 based Robolectric tests on the JUnit 5 platform
+    testRuntimeOnly(libs.junit.vintage)
 }

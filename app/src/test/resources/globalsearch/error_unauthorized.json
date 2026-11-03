@@ -1,0 +1,1 @@
+{"type":"https://harmoniq.dev/errors/unauthorized","title":"Unauthorized","status":401,"code":"unauthorized","detail":"Missing or invalid X-App-Token. Install the latest app build.","request_id":"097a5cba291e47a5","retryable":false}

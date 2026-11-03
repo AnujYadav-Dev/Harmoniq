@@ -20,6 +20,9 @@ import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,7 +53,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import dev.anujyadav.harmoniq.services.globalsearch.api.SearchResultDto
+import dev.anujyadav.harmoniq.services.globalsearch.api.SearchType
 import dev.anujyadav.harmoniq.services.groove.Groove
+import dev.anujyadav.harmoniq.ui.view.globalsearch.GlobalDownloadControls
+import dev.anujyadav.harmoniq.ui.view.globalsearch.GlobalPreviewSheet
+import dev.anujyadav.harmoniq.ui.view.globalsearch.GlobalSearchResults
 import dev.anujyadav.harmoniq.ui.components.AlbumArtistDropdownMenu
 import dev.anujyadav.harmoniq.ui.components.AlbumDropdownMenu
 import dev.anujyadav.harmoniq.ui.components.ArtistDropdownMenu
@@ -94,9 +102,24 @@ fun SearchTabContent(context: ViewContext) {
 
     fun isChipSelected(kind: Groove.Kind) = selectedChip == null || selectedChip == kind
 
+    val globalSearch = context.symphony.globalSearch
+    var isGlobalMode by rememberSaveable {
+        mutableStateOf(globalSearch.isAvailable && context.symphony.settings.searchGlobalMode.value)
+    }
+    var globalType by rememberSaveable { mutableStateOf(context.symphony.settings.globalSearchType.value) }
+    val globalState by globalSearch.searchState.collectAsState()
+    val globalMeta by globalSearch.meta.collectAsState()
+    val downloadedVideoIds by globalSearch.downloadedVideoIds.collectAsState()
+    var previewResult by remember { mutableStateOf<SearchResultDto?>(null) }
+
     var currentTermsRoutine: Job? = null
     fun setTerms(nTerms: String) {
         terms = nTerms
+        if (isGlobalMode) {
+            // debounced, deduplicated and cancelled by GlobalSearch itself
+            globalSearch.search(nTerms, globalType)
+            return
+        }
         isSearching = true
         currentTermsRoutine?.cancel()
         currentTermsRoutine = coroutineScope.launch {
@@ -177,12 +200,30 @@ fun SearchTabContent(context: ViewContext) {
         }
     }
 
+    LaunchedEffect(isGlobalMode, globalType) {
+        context.symphony.settings.searchGlobalMode.setValue(isGlobalMode)
+        context.symphony.settings.globalSearchType.setValue(globalType)
+        if (isGlobalMode) {
+            globalSearch.ensureMeta()
+        }
+        setTerms(terms)
+    }
+
     val isUpdating by context.symphony.groove.exposer.isUpdating.collectAsState()
     val pullRefreshState = rememberPullToRefreshState()
 
     PullToRefreshBox(
-        isRefreshing = isUpdating,
-        onRefresh = { context.symphony.groove.fetch(Groove.FetchOptions(resetInMemoryCache = true)) },
+        isRefreshing = isUpdating && !isGlobalMode,
+        onRefresh = {
+            when {
+                isGlobalMode -> {
+                    globalSearch.refreshMeta()
+                    globalSearch.retrySearch()
+                }
+
+                else -> context.symphony.groove.fetch(Groove.FetchOptions(resetInMemoryCache = true))
+            }
+        },
         modifier = Modifier.fillMaxSize(),
         state = pullRefreshState,
         indicator = {
@@ -214,7 +255,7 @@ fun SearchTabContent(context: ViewContext) {
             value = terms,
             onValueChange = { setTerms(it) },
             placeholder = {
-                Text(AppStrings.SearchYourMusic)
+                Text(if (isGlobalMode) AppStrings.SearchSongsToDownload else AppStrings.SearchYourMusic)
             },
             leadingIcon = {
                 Icon(Icons.Filled.Search, null)
@@ -230,7 +271,35 @@ fun SearchTabContent(context: ViewContext) {
             }
         )
         Spacer(modifier = Modifier.height(4.dp))
-        Row(
+        if (globalSearch.isAvailable) {
+            SearchModeSwitch(
+                isGlobalMode = isGlobalMode,
+                onChange = { isGlobalMode = it },
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+        }
+        if (isGlobalMode) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(horizontal = 12.dp)
+            ) {
+                SearchType.entries.forEach {
+                    FilterChip(
+                        selected = globalType == it,
+                        label = { Text(it.searchTabLabel()) },
+                        onClick = { globalType = it }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            GlobalSearchResults(
+                state = globalState,
+                meta = globalMeta,
+                downloadedVideoIds = downloadedVideoIds,
+                onRetry = { globalSearch.retrySearch() },
+                onOpen = { previewResult = it },
+            )
+        } else Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.horizontalScroll(chipsScrollState)
         ) {
@@ -258,7 +327,7 @@ fun SearchTabContent(context: ViewContext) {
         Spacer(modifier = Modifier.height(4.dp))
 
         // Results content
-        results?.run {
+        results?.takeIf { !isGlobalMode }?.run {
             val hasSongs = isChipSelected(Groove.Kind.SONG) && songIds.isNotEmpty()
             val hasArtists = isChipSelected(Groove.Kind.ARTIST) && artistNames.isNotEmpty()
             val hasAlbums = isChipSelected(Groove.Kind.ALBUM) && albumIds.isNotEmpty()
@@ -361,6 +430,15 @@ fun SearchTabContent(context: ViewContext) {
         }
     }
 }
+
+    previewResult?.let { result ->
+        GlobalPreviewSheet(
+            context,
+            result,
+            onDismissRequest = { previewResult = null },
+            downloadContent = { GlobalDownloadControls(context, result) },
+        )
+    }
 }
 
 @Composable
@@ -379,4 +457,30 @@ private fun Groove.Kind.searchTabLabel() = when (this) {
     Groove.Kind.ALBUM_ARTIST -> AppStrings.AlbumArtists
     Groove.Kind.GENRE -> AppStrings.Genres
     Groove.Kind.PLAYLIST -> AppStrings.Playlists
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SearchModeSwitch(isGlobalMode: Boolean, onChange: (Boolean) -> Unit) {
+    val modes = listOf(false to AppStrings.Library, true to AppStrings.Global)
+    SingleChoiceSegmentedButtonRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+    ) {
+        modes.forEachIndexed { index, (global, label) ->
+            SegmentedButton(
+                selected = isGlobalMode == global,
+                onClick = { onChange(global) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = modes.size),
+                icon = {},
+                label = { Text(label) },
+            )
+        }
+    }
+}
+
+private fun SearchType.searchTabLabel() = when (this) {
+    SearchType.Song -> AppStrings.Songs
+    SearchType.Video -> AppStrings.Videos
 }

@@ -2,8 +2,11 @@ package dev.anujyadav.harmoniq.services
 
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import androidx.core.content.edit
 import dev.anujyadav.harmoniq.Symphony
+import dev.anujyadav.harmoniq.services.globalsearch.api.DownloadFormat
+import dev.anujyadav.harmoniq.services.globalsearch.api.SearchType
 import dev.anujyadav.harmoniq.services.groove.repositories.AlbumArtistRepository
 import dev.anujyadav.harmoniq.services.groove.repositories.AlbumRepository
 import dev.anujyadav.harmoniq.services.groove.repositories.ArtistRepository
@@ -451,6 +454,16 @@ class Settings(private val symphony: Symphony) {
     val gaplessPlayback = BooleanEntry("gapless_playback", true)
     val caseSensitiveSorting = BooleanEntry("case_sensitive_sorting", false)
     val lyricsKeepScreenAwake = BooleanEntry("lyrics_keep_screen_awake", true)
+    val searchGlobalMode = BooleanEntry("search_global_mode", false)
+    val globalSearchType = EnumEntry("global_search_type", enumEntries<SearchType>(), SearchType.Song)
+
+    // Opus is the untouched source stream, but Android 9 can't play it
+    val globalSearchDownloadFormat = EnumEntry(
+        "global_search_download_format",
+        enumEntries<DownloadFormat>(),
+        DownloadFormat.entries.first { Build.VERSION.SDK_INT >= it.minSdk },
+    )
+    val globalSearchSaveLrcFiles = BooleanEntry("global_search_save_lrc_files", false)
 
     private fun getSharedPreferences() = symphony.applicationContext
         .getSharedPreferences("settings", Context.MODE_PRIVATE)

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- debug builds only: lets Global Search reach a harmoniq-server on this PC over plain http,
+     via `adb reverse tcp:8000 tcp:8000` (127.0.0.1), the emulator host alias (10.0.2.2) or a LAN IP
+     (which can't be listed by prefix). Release, nightly and canary keep Android's default: HTTPS only. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

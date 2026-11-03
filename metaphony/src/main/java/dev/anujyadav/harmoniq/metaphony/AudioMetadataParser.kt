@@ -1,8 +1,6 @@
 ﻿package dev.anujyadav.harmoniq.metaphony
 
 import dev.anujyadav.harmoniq.metaphony.AudioMetadata.Picture
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import kotlin.String
 
 class AudioMetadataParser private constructor() {
@@ -47,7 +45,7 @@ class AudioMetadataParser private constructor() {
             discTotal = discTotal,
             trackNumber = trackNumber,
             trackTotal = trackTotal ?: tags["TRACKTOTAL"]?.firstOrNull()?.toIntOrNull(),
-            date = tags["DATE"]?.firstOrNull()?.let { parseDate(it) },
+            date = tags["DATE"]?.firstOrNull()?.let { AudioMetadataDates.parse(it) },
             lyrics = tags["LYRICS"]?.firstOrNull(),
             encoding = tags["ENCODING"]?.firstOrNull(),
             bitrate = audioProperties["BITRATE"],
@@ -78,23 +76,6 @@ class AudioMetadataParser private constructor() {
                 return text.toIntOrNull() to null
             }
             return split[0].toIntOrNull() to split[1].toIntOrNull()
-        }
-
-        val DATE_YEAR = DateTimeFormatter.ofPattern("yyyy")
-        val DATE_YEAR_MONTH = DateTimeFormatter.ofPattern("yyyy")
-        val DATE_YEAR_MONTH_DATE = DateTimeFormatter.ISO_LOCAL_DATE
-
-        private fun parseDate(text: String): LocalDate? {
-            runCatching {
-                return LocalDate.parse(text, DATE_YEAR)
-            }
-            runCatching {
-                return LocalDate.parse(text, DATE_YEAR_MONTH)
-            }
-            runCatching {
-                return LocalDate.parse(text, DATE_YEAR_MONTH_DATE)
-            }
-            return null
         }
     }
 }

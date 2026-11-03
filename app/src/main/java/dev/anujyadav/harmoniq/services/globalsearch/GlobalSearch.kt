@@ -4,6 +4,7 @@ import dev.anujyadav.harmoniq.Symphony
 import dev.anujyadav.harmoniq.services.globalsearch.api.ErrorCodes
 import dev.anujyadav.harmoniq.services.globalsearch.api.HarmoniqServerApi
 import dev.anujyadav.harmoniq.services.globalsearch.api.MetaDto
+import dev.anujyadav.harmoniq.services.globalsearch.api.PlaylistDto
 import dev.anujyadav.harmoniq.services.globalsearch.api.PreviewDto
 import dev.anujyadav.harmoniq.services.globalsearch.api.SongMetadataDto
 import dev.anujyadav.harmoniq.services.globalsearch.api.SearchResultDto
@@ -28,6 +29,7 @@ import dev.anujyadav.harmoniq.services.globalsearch.download.ServerDownloadWorke
 import kotlin.time.toJavaDuration
 import android.net.Uri
 import dev.anujyadav.harmoniq.services.globalsearch.download.LibraryLink
+import dev.anujyadav.harmoniq.services.globalsearch.watchlist.WatchList
 import dev.anujyadav.harmoniq.services.groove.Groove
 import dev.anujyadav.harmoniq.utils.ActivityUtils
 import kotlinx.coroutines.flow.first
@@ -49,6 +51,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.drop
+import dev.anujyadav.harmoniq.services.globalsearch.connection.ConnectionState
+import dev.anujyadav.harmoniq.services.globalsearch.connection.ServerConnections
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -62,7 +67,7 @@ class GlobalSearch(private val symphony: Symphony) : Symphony.Hooks {
     sealed interface SearchState {
         data object Idle : SearchState
         data class Loading(val query: String) : SearchState
-        data class Results(val query: String, val type: SearchType, val results: List<SearchResultDto>) : SearchState
+        data class Results(val query: String, val type: SearchType, val page: SearchPage) : SearchState
         data class Empty(val query: String) : SearchState
         data class Failed(val query: String, val error: ServerError) : SearchState
     }
@@ -78,13 +83,45 @@ class GlobalSearch(private val symphony: Symphony) : Symphony.Hooks {
 
     private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val context get() = symphony.applicationContext
-    val api by lazy { GlobalSearchServices.createApi(context) }
+    // which server and token to use; changes at runtime (Settings, or the GitHub config file)
+    val connections by lazy { ServerConnections.get(context) }
+    val connectionState: StateFlow<ConnectionState> get() = connections.state
 
-    // read once per launch: after a 401 the "please update" message stays visible this session
-    val isAvailable = GlobalSearchServices.isAvailable(context)
+    // a client for the current connection, or null when no server is configured
+    val api: HarmoniqServerApi? get() = connections.api()
+
+    // the user hasn't turned it off in Settings and a server is known (a paused one still shows its notice)
+    val isEnabled: StateFlow<Boolean> by lazy {
+        combine(symphony.settings.globalSearchEnabled.flow, connections.state) { enabled, state ->
+            enabled && state !is ConnectionState.NotConfigured
+        }.stateIn(
+            coroutineScope,
+            SharingStarted.Eagerly,
+            symphony.settings.globalSearchEnabled.value && connections.state.value !is ConnectionState.NotConfigured,
+        )
+    }
+
+    // notice from the config file, e.g. "Server maintenance tonight"
+    val connectionMessage: StateFlow<String?> by lazy {
+        connections.state.map {
+            when (it) {
+                is ConnectionState.Ready -> it.message
+                is ConnectionState.Disabled -> it.message
+                ConnectionState.NotConfigured -> null
+            }
+        }.stateIn(coroutineScope, SharingStarted.Eagerly, null)
+    }
 
     private val _meta = MutableStateFlow<MetaState>(MetaState.Unknown)
     val meta = _meta.asStateFlow()
+
+    // until /meta answers every type is offered; a server before v0.3.0 then hides Playlists and All
+    val supportedSearchTypes: StateFlow<List<SearchType>> = _meta
+        .map { (it as? MetaState.Ready)?.meta?.supportedSearchTypes ?: SearchType.entries }
+        .stateIn(coroutineScope, SharingStarted.Eagerly, SearchType.entries)
+
+    // songs saved from Global Search to listen to or download later; local, works offline
+    val watchList = WatchList(symphony, coroutineScope)
 
     /** One download as the UI shows it: WorkManager's live state over the persisted record. */
     data class DownloadView(
@@ -120,7 +157,18 @@ class GlobalSearch(private val symphony: Symphony) : Symphony.Hooks {
             .stateIn(coroutineScope, SharingStarted.Eagerly, emptySet())
     }
 
-    private val searchRequests = MutableStateFlow(SearchRequest("", SearchType.Song))
+    /** Per video, merged over formats: what the row badge and the actions show. */
+    val downloadStateByVideoId: StateFlow<Map<String, OnlineDownloadState>> by lazy {
+        downloads
+            .map { all ->
+                all.values.groupBy { it.videoId }.mapValues { (_, views) ->
+                    OnlineDownloadState.merge(views.map { it.toOnlineState() })
+                }
+            }
+            .stateIn(coroutineScope, SharingStarted.Eagerly, emptyMap())
+    }
+
+    private val searchRequests = MutableStateFlow(SearchRequest("", SearchType.All))
 
     @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
     val searchState: StateFlow<SearchState> = searchRequests
@@ -151,9 +199,28 @@ class GlobalSearch(private val symphony: Symphony) : Symphony.Hooks {
         }
     }
 
+    private var metaRequested = false
+
     // called once Global mode is first shown, so offline-only use never touches the network
     fun ensureMeta() {
-        if (_meta.value == MetaState.Unknown) refreshMeta()
+        metaRequested = true
+        if (_meta.value != MetaState.Unknown) return
+        _meta.value = MetaState.Loading
+        coroutineScope.launch {
+            // the config file is re-read at most every few hours (connections decides)
+            connections.refreshRemote()
+            _meta.value = MetaState.Unknown
+            refreshMeta()
+        }
+    }
+
+    // a new server or token: forget the old server's answers and run the current search again
+    private fun watchConnection() = coroutineScope.launch {
+        connections.state.drop(1).distinctUntilChanged().collect {
+            _meta.value = MetaState.Unknown
+            if (metaRequested) refreshMeta()
+            retrySearch()
+        }
     }
 
     // plan §11: a saved song only reaches the library through a media folder covering Download/Harmoniq
@@ -208,11 +275,13 @@ class GlobalSearch(private val symphony: Symphony) : Symphony.Hooks {
     }
 
     override fun onSymphonyReady() {
-        if (isAvailable) watchSavedSongs()
+        watchSavedSongs()
+        watchConnection()
+        watchList.load()
     }
 
     fun enqueueDownload(result: SearchResultDto, format: DownloadFormat): EnqueueResult {
-        if (!isAvailable) return EnqueueResult.Unavailable
+        if (api == null) return EnqueueResult.Unavailable
         val key = DownloadRecords.key(result.videoId, format.apiValue)
         val current = downloads.value
         if (current[key]?.isActive == true) return EnqueueResult.AlreadyQueued
@@ -308,6 +377,19 @@ class GlobalSearch(private val symphony: Symphony) : Symphony.Hooks {
 
     suspend fun preview(videoId: String): Result<PreviewDto> = call { it.preview(videoId) }
 
+    // reopening a playlist from the list shouldn't cost another request
+    private val playlistCache = object : LinkedHashMap<String, PlaylistDto>(0, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, PlaylistDto>?) =
+            size > ServerConfig.PLAYLIST_CACHE_SIZE
+    }
+
+    suspend fun playlist(playlistId: String): Result<PlaylistDto> {
+        synchronized(playlistCache) { playlistCache[playlistId] }?.let { return Result.success(it) }
+        return call { it.playlist(playlistId) }.onSuccess {
+            synchronized(playlistCache) { playlistCache[playlistId] = it }
+        }
+    }
+
     private suspend fun <T> call(block: suspend (HarmoniqServerApi) -> T): Result<T> {
         val api = api ?: return Result.failure(IllegalStateException("Global Search is not configured"))
         return try {
@@ -322,10 +404,15 @@ class GlobalSearch(private val symphony: Symphony) : Symphony.Hooks {
         if (request.query.length < ServerConfig.SEARCH_MIN_QUERY_LENGTH) return SearchState.Idle
         val api = api ?: return SearchState.Idle
         return try {
-            val response = api.search(request.query, request.type, ServerConfig.SEARCH_RESULT_LIMIT)
+            val type = resolveSearchType(request.type)
+            val limit = when (type) {
+                SearchType.All -> ServerConfig.SEARCH_ALL_SECTION_LIMIT
+                else -> ServerConfig.SEARCH_RESULT_LIMIT
+            }
+            val page = SearchPage.from(type, api.search(request.query, type, limit))
             when {
-                response.results.isEmpty() -> SearchState.Empty(request.query)
-                else -> SearchState.Results(request.query, request.type, response.results)
+                page.isEmpty && page.sectionErrors.isEmpty() -> SearchState.Empty(request.query)
+                else -> SearchState.Results(request.query, type, page)
             }
         } catch (err: ServerError) {
             Logger.warn(TAG, "search failed: ${err.message}")
@@ -334,10 +421,23 @@ class GlobalSearch(private val symphony: Symphony) : Symphony.Hooks {
         }
     }
 
-    internal fun onServerError(err: ServerError) {
-        if (err is ServerError.Problem && err.code == ErrorCodes.UNAUTHORIZED) {
-            GlobalSearchPreferences.markRevoked(context)
+    // a type the server doesn't know (older server) falls back to the first one it supports
+    private suspend fun resolveSearchType(type: SearchType): SearchType {
+        if (type in SearchType.legacy) return type
+        ensureMeta()
+        val state = withTimeoutOrNull(ServerConfig.metaWaitTimeout) {
+            meta.first { it is MetaState.Ready || it is MetaState.Failed }
         }
+        val supported = (state as? MetaState.Ready)?.meta?.supportedSearchTypes ?: return type
+        return if (type in supported) type else supported.first()
+    }
+
+    // a rejected token or an unreachable server may mean the config file changed: re-read it
+    // (spaced out by ServerConnections); a changed connection re-runs the search via watchConnection
+    internal fun onServerError(err: ServerError) {
+        val maybeMoved = err is ServerError.Network ||
+                (err is ServerError.Problem && err.code == ErrorCodes.UNAUTHORIZED)
+        if (maybeMoved) coroutineScope.launch { connections.refreshRemote(force = true) }
     }
 
     override fun onSymphonyDestroy() {
@@ -346,6 +446,14 @@ class GlobalSearch(private val symphony: Symphony) : Symphony.Hooks {
 
     companion object {
         private const val TAG = "GlobalSearch"
+
+        fun DownloadView.toOnlineState(): OnlineDownloadState = when (state) {
+            DownloadView.State.Queued -> OnlineDownloadState.Queued
+            DownloadView.State.Running -> OnlineDownloadState.Running(DownloadProgressData.fraction(progress))
+            DownloadView.State.Done -> OnlineDownloadState.Done
+            DownloadView.State.Failed -> OnlineDownloadState.Failed
+            DownloadView.State.Cancelled -> OnlineDownloadState.None
+        }
         private const val WORK_TAG = "global_search_download"
         private const val KEY_TAG_PREFIX = "download_key:"
 

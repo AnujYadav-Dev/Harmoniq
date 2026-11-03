@@ -12,6 +12,8 @@ import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Lyrics
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -23,7 +25,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import dev.anujyadav.harmoniq.services.globalsearch.GlobalSearch
@@ -40,6 +41,7 @@ import dev.anujyadav.harmoniq.ui.view.globalsearch.rememberDownloadsFolderPicker
 import dev.anujyadav.harmoniq.ui.view.globalsearch.supportedDownloadFormats
 import dev.anujyadav.harmoniq.utils.AppStrings
 import kotlinx.serialization.Serializable
+import androidx.compose.runtime.getValue
 
 @Serializable
 object GlobalSearchSettingsViewRoute
@@ -51,12 +53,15 @@ fun GlobalSearchSettingsView(context: ViewContext) {
     val globalSearch = context.symphony.globalSearch
     val downloadFormat by context.symphony.settings.globalSearchDownloadFormat.flow.collectAsState()
     val saveLrcFiles by context.symphony.settings.globalSearchSaveLrcFiles.flow.collectAsState()
+    // the page stays reachable while it's off, so it can be turned back on here
+    val isEnabled by context.symphony.settings.globalSearchEnabled.flow.collectAsState()
+    val autoplayPreviews by context.symphony.settings.globalSearchAutoplayPreviews.flow.collectAsState()
     val meta by globalSearch.meta.collectAsState()
     val isFolderCovered by globalSearch.isDownloadsFolderCovered.collectAsState()
     val pickFolder = rememberDownloadsFolderPicker(context)
 
-    LaunchedEffect(Unit) {
-        globalSearch.ensureMeta()
+    LaunchedEffect(isEnabled) {
+        if (isEnabled) globalSearch.ensureMeta()
     }
 
     Scaffold(
@@ -92,6 +97,39 @@ fun GlobalSearchSettingsView(context: ViewContext) {
                     .fillMaxSize()
             ) {
                 Column(modifier = Modifier.verticalScroll(scrollState)) {
+                    SettingsSwitchTile(
+                        icon = {
+                            Icon(Icons.Filled.Public, null)
+                        },
+                        title = {
+                            Text(AppStrings.EnableGlobalSearch)
+                        },
+                        subtitle = {
+                            Text(AppStrings.EnableGlobalSearchHint)
+                        },
+                        value = isEnabled,
+                        onChange = { value ->
+                            context.symphony.settings.globalSearchEnabled.setValue(value)
+                        }
+                    )
+                    GlobalSearchServerSettings(context, enabled = isEnabled)
+                    SettingsSideHeading(AppStrings.Preferences)
+                    SettingsSwitchTile(
+                        icon = {
+                            Icon(Icons.Filled.PlayCircle, null)
+                        },
+                        title = {
+                            Text(AppStrings.AutoplayPreviews)
+                        },
+                        subtitle = {
+                            Text(AppStrings.AutoplayPreviewsHint)
+                        },
+                        value = autoplayPreviews,
+                        enabled = isEnabled,
+                        onChange = { value ->
+                            context.symphony.settings.globalSearchAutoplayPreviews.setValue(value)
+                        }
+                    )
                     SettingsSideHeading(AppStrings.Downloads)
                     SettingsOptionTile(
                         icon = {
@@ -102,6 +140,7 @@ fun GlobalSearchSettingsView(context: ViewContext) {
                         },
                         value = downloadFormat,
                         values = supportedDownloadFormats().associateWith { it.label() },
+                        enabled = isEnabled,
                         onChange = { value ->
                             context.symphony.settings.globalSearchDownloadFormat.setValue(value)
                         }
@@ -118,6 +157,7 @@ fun GlobalSearchSettingsView(context: ViewContext) {
                             Text(AppStrings.AlsoSaveLrcFilesHint)
                         },
                         value = saveLrcFiles,
+                        enabled = isEnabled,
                         onChange = { value ->
                             context.symphony.settings.globalSearchSaveLrcFiles.setValue(value)
                         }
@@ -131,6 +171,7 @@ fun GlobalSearchSettingsView(context: ViewContext) {
                             title = {
                                 Text(AppStrings.NotInLibraryAddFolder)
                             },
+                            enabled = isEnabled,
                             onClick = pickFolder,
                         )
                     }
@@ -145,6 +186,7 @@ fun GlobalSearchSettingsView(context: ViewContext) {
                         subtitle = {
                             Text(serverStatusText(meta))
                         },
+                        enabled = isEnabled,
                         onClick = { globalSearch.refreshMeta() },
                     )
                 }

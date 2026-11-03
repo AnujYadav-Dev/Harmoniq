@@ -7,12 +7,11 @@ import androidx.work.WorkInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import dev.anujyadav.harmoniq.services.globalsearch.GlobalSearchMessages
-import dev.anujyadav.harmoniq.services.globalsearch.GlobalSearchPreferences
-import dev.anujyadav.harmoniq.services.globalsearch.GlobalSearchServices
 import dev.anujyadav.harmoniq.services.globalsearch.ServerConfig
 import dev.anujyadav.harmoniq.services.globalsearch.api.DownloadFormat
 import dev.anujyadav.harmoniq.services.globalsearch.api.ErrorCodes
 import dev.anujyadav.harmoniq.services.globalsearch.api.HarmoniqServerApi
+import dev.anujyadav.harmoniq.services.globalsearch.connection.ServerConnections
 import dev.anujyadav.harmoniq.utils.Logger
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
@@ -40,15 +39,20 @@ class ServerDownloadWorker(
         val partDirectory: File,
         val notifications: DownloadNotifications?,
         val sleep: suspend (Duration) -> Unit = { delay(it) },
+        // re-reads the server config after a rejected token; true when the connection changed
+        val refreshConnection: suspend () -> Boolean = { false },
     ) {
         companion object {
-            fun create(context: Context) = Dependencies(
-                api = GlobalSearchServices.createApi(context),
-                saver = DownloadSaver.create(context),
-                records = DownloadRecords.get(context),
-                partDirectory = File(context.cacheDir, ServerConfig.PART_FILES_FOLDER_NAME),
-                notifications = DownloadNotifications(context.applicationContext),
-            )
+            fun create(context: Context) = ServerConnections.get(context).let { connections ->
+                Dependencies(
+                    api = connections.api(),
+                    saver = DownloadSaver.create(context),
+                    records = DownloadRecords.get(context),
+                    partDirectory = File(context.cacheDir, ServerConfig.PART_FILES_FOLDER_NAME),
+                    notifications = DownloadNotifications(context.applicationContext),
+                    refreshConnection = { connections.refreshRemote(force = true) },
+                )
+            }
         }
     }
 
@@ -61,7 +65,11 @@ class ServerDownloadWorker(
 
     override suspend fun doWork(): Result {
         val request = request ?: return Result.failure()
-        val api = dependencies.api ?: return Result.failure(errorData(ErrorCodes.UNAUTHORIZED))
+        val api = dependencies.api ?: return when {
+            // no server known yet: the config file may simply not have been read
+            dependencies.refreshConnection() -> Result.retry()
+            else -> Result.failure(errorData(ErrorCodes.UNAUTHORIZED))
+        }
         dependencies.notifications?.ensureChannel()
         showProgress(request, null)
 
@@ -104,11 +112,17 @@ class ServerDownloadWorker(
         }
     }
 
-    private fun fail(pipeline: DownloadPipeline, request: DownloadRequest, code: String): Result {
-        pipeline.markFailed(request.key, code)
-        if (code == ErrorCodes.UNAUTHORIZED) {
-            GlobalSearchPreferences.markRevoked(applicationContext)
+    private suspend fun fail(pipeline: DownloadPipeline, request: DownloadRequest, code: String): Result {
+        // a rotated token or a moved server: the next run uses the new connection
+        if (code == ErrorCodes.UNAUTHORIZED && dependencies.refreshConnection()) {
+            Logger.warn(TAG, "${request.videoId}: server connection changed, retrying")
+            // the pipeline already marked it failed; it's waiting for the next run instead
+            dependencies.records.update(request.key) {
+                it?.copy(state = DownloadRecord.State.Active, errorCode = null, jobId = null)
+            }
+            return Result.retry()
         }
+        pipeline.markFailed(request.key, code)
         dependencies.notifications?.showFailed(id, request.title, GlobalSearchMessages.forCode(code))
         return Result.failure(errorData(code))
     }

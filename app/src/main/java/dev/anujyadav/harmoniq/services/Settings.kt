@@ -22,6 +22,9 @@ import dev.anujyadav.harmoniq.ui.view.NowPlayingControlsLayout
 import dev.anujyadav.harmoniq.ui.view.NowPlayingLyricsLayout
 import dev.anujyadav.harmoniq.ui.view.home.ForYou
 import dev.anujyadav.harmoniq.ui.view.navigation.LibraryPill
+import dev.anujyadav.harmoniq.ui.components.OnlineSwipeScope
+import dev.anujyadav.harmoniq.ui.components.OnlineTrackAction
+import dev.anujyadav.harmoniq.services.globalsearch.watchlist.WatchListSortBy
 import dev.anujyadav.harmoniq.ui.view.navigation.MainTab
 import dev.anujyadav.harmoniq.utils.ImagePreserver
 import dev.anujyadav.harmoniq.utils.StringListUtils
@@ -319,7 +322,7 @@ class Settings(private val symphony: Symphony) {
             getSharedPreferences().getString(key, null)
                 ?.split(",")
                 ?.mapNotNull { name -> LibraryPill.entries.find { it.name == name } }
-                ?.let { saved -> saved + (default - saved.toSet()) }
+                ?.let { saved -> LibraryPill.withNewPills(saved) }
                 ?: default
         override fun setValueInternal(value: List<LibraryPill>) =
             getSharedPreferences().edit { putString(key, value.joinToString(",") { it.name }) }
@@ -357,6 +360,15 @@ class Settings(private val symphony: Symphony) {
         scope.key,
         direction,
         enumEntries<PlaylistAction>(),
+        scope.defaultAction(direction),
+    )
+
+    // Global Search songs and videos (search results, playlist drawer, Watch List)
+    fun onlineSwipeAction(scope: OnlineSwipeScope, direction: SwipeDirection) = swipeActionEntry(
+        ONLINE_SWIPE_KIND,
+        scope.key,
+        direction,
+        enumEntries<OnlineTrackAction>(),
         scope.defaultAction(direction),
     )
 
@@ -455,7 +467,15 @@ class Settings(private val symphony: Symphony) {
     val caseSensitiveSorting = BooleanEntry("case_sensitive_sorting", false)
     val lyricsKeepScreenAwake = BooleanEntry("lyrics_keep_screen_awake", true)
     val searchGlobalMode = BooleanEntry("search_global_mode", false)
-    val globalSearchType = EnumEntry("global_search_type", enumEntries<SearchType>(), SearchType.Song)
+
+    // turning it off hides Global Search everywhere; downloads and the Watch List are kept
+    val globalSearchEnabled = BooleanEntry("global_search_enabled", true)
+    val globalSearchAutoplayPreviews = BooleanEntry("global_search_autoplay_previews", true)
+
+    // the enum name is stored, so "Song" / "Video" saved by older versions still apply
+    val globalSearchType = EnumEntry("global_search_type", enumEntries<SearchType>(), SearchType.All)
+    val watchListSortBy = EnumEntry("watch_list_sort_by", enumEntries<WatchListSortBy>(), WatchListSortBy.DateAdded)
+    val watchListSortReverse = BooleanEntry("watch_list_sort_reverse", false)
 
     // Opus is the untouched source stream, but Android 9 can't play it
     val globalSearchDownloadFormat = EnumEntry(
@@ -472,5 +492,6 @@ class Settings(private val symphony: Symphony) {
         private const val NONE_VALUE = ""
         private const val SONG_SWIPE_KIND = "song"
         private const val PLAYLIST_SWIPE_KIND = "playlist"
+        private const val ONLINE_SWIPE_KIND = "online"
     }
 }

@@ -20,6 +20,16 @@ fun secret(name: String): String = System.getenv(name) ?: localProperties.getPro
 fun buildTypeSecret(name: String, buildType: String): String =
     secret("${name}_${buildType.uppercase()}").ifEmpty { secret(name) }
 
+// public file describing the default Global Search server; editing it on GitHub reaches every
+// installed app without a rebuild. Override with HARMONIQ_REMOTE_CONFIG_URL(_<BUILDTYPE>), or set it
+// to "none" to build without it (the built-in values above are then the only default).
+val defaultRemoteConfigUrl = "https://raw.githubusercontent.com/AnujYadav-Dev/Harmoniq/main/config/global-search.json"
+
+fun remoteConfigUrl(buildType: String): String =
+    buildTypeSecret("HARMONIQ_REMOTE_CONFIG_URL", buildType)
+        .ifEmpty { defaultRemoteConfigUrl }
+        .let { if (it.equals("none", ignoreCase = true)) "" else it }
+
 fun buildConfigString(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 android {
@@ -87,6 +97,7 @@ android {
         listOf("HARMONIQ_SERVER_URL", "HARMONIQ_APP_TOKEN").forEach { key ->
             buildConfigField("String", key, buildConfigString(buildTypeSecret(key, name)))
         }
+        buildConfigField("String", "HARMONIQ_REMOTE_CONFIG_URL", buildConfigString(remoteConfigUrl(name)))
     }
 
     splits {
@@ -143,6 +154,12 @@ android {
     room {
         schemaDirectory("$projectDir/room-schemas")
     }
+
+    // MigrationTestHelper reads the exported schemas as assets. Robolectric unit tests only see
+    // the tested variant's merged assets (not the test source set's), so debug builds carry them
+    sourceSets {
+        getByName("debug").assets.srcDir("$projectDir/room-schemas")
+    }
 }
 
 dependencies {
@@ -152,6 +169,7 @@ dependencies {
     implementation(libs.compose.material.icons.extended)
     implementation(libs.compose.material3)
     implementation(libs.compose.navigation)
+    implementation(libs.compose.foundation)
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.core)
@@ -161,7 +179,7 @@ dependencies {
     implementation(libs.lifecycle.runtime)
     implementation(libs.media)
     implementation(libs.okhttp3)
-    implementation("sh.calvin.reorderable:reorderable:2.1.1")
+    implementation(libs.reorderable)
     implementation(libs.work.runtime)
     implementation(libs.youtube.player)
     ksp(libs.room.compiler)
@@ -174,6 +192,7 @@ dependencies {
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.okhttp3.mockwebserver)
     testImplementation(libs.work.testing)
+    testImplementation(libs.room.testing)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.junit)

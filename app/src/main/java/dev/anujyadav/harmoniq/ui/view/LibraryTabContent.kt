@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.pager.HorizontalPager
+import dev.anujyadav.harmoniq.ui.view.globalsearch.WatchListView
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -115,7 +116,12 @@ object FavoritesViewRoute
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun LibraryTabContent(context: ViewContext) {
-    val libraryPillOrder by context.symphony.settings.libraryPillOrder.flow.collectAsState()
+    val savedPillOrder by context.symphony.settings.libraryPillOrder.flow.collectAsState()
+    val isGlobalSearchEnabled by context.symphony.globalSearch.isEnabled.collectAsState()
+    // Global Search pills (Watch List) only while it's on; their place in the order is kept
+    val libraryPillOrder = remember(savedPillOrder, isGlobalSearchEnabled) {
+        savedPillOrder.filter { isGlobalSearchEnabled || !it.isGlobalSearch }
+    }
     var showReorderSheet by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
@@ -297,6 +303,7 @@ private fun LibraryPillContent(
             when (pill) {
                 LibraryPill.ForYou -> LibraryForYouContent(context, onPillChange)
                 LibraryPill.Songs -> SongsView(context)
+                LibraryPill.WatchList -> WatchListView(context)
                 LibraryPill.Albums -> AlbumsView(context)
                 LibraryPill.Artists -> ArtistsView(context)
                 LibraryPill.AlbumArtists -> AlbumArtistsView(context)

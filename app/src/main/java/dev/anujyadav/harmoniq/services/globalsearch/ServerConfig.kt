@@ -1,23 +1,24 @@
 package dev.anujyadav.harmoniq.services.globalsearch
 
 import dev.anujyadav.harmoniq.BuildConfig
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
-import okhttp3.HttpUrl
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
- * Everything Global Search can be tuned with, in one place. The server URL and app token
- * come from `local.properties` / environment variables via BuildConfig and are never committed.
+ * Everything Global Search can be tuned with, in one place. Which server is used, and with
+ * which token, is decided at runtime by [dev.anujyadav.harmoniq.services.globalsearch.connection.ServerConnections].
  * Limits mirror the server defaults documented in harmoniq-server `docs/api.md`.
  */
 object ServerConfig {
-    val baseUrl: HttpUrl? = BuildConfig.HARMONIQ_SERVER_URL.trim().toHttpUrlOrNull()
-    val appToken: String = BuildConfig.HARMONIQ_APP_TOKEN.trim()
+    // public config file describing the default server (BuildConfig, overridable per build type)
+    val remoteConfigUrl: String = BuildConfig.HARMONIQ_REMOTE_CONFIG_URL
 
-    // builds without a server URL and token stay purely offline
-    val isEnabled = baseUrl != null && appToken.isNotEmpty()
+    // re-read the config file after this long, or sooner after an auth/connection error
+    val remoteConfigMaxAge = 6.hours
+    val remoteConfigMinRefresh = 1.minutes
+    const val REMOTE_CONFIG_MAX_BYTES = 16 * 1024
 
     // network
     val connectTimeout = 10.seconds
@@ -30,6 +31,22 @@ object ServerConfig {
     const val SEARCH_MIN_QUERY_LENGTH = 2
     const val SEARCH_MAX_QUERY_LENGTH = 200
     const val SEARCH_RESULT_LIMIT = 20
+
+    // results per section of the "All" tab (server: SEARCH_ALL_SECTION_LIMIT)
+    const val SEARCH_ALL_SECTION_LIMIT = 10
+
+    // how long a search for a v0.3.0 type waits for /meta to know whether the server supports it
+    val metaWaitTimeout = 5.seconds
+
+    // playlists kept in memory, so reopening one from the list is instant
+    const val PLAYLIST_CACHE_SIZE = 16
+
+    // links built when the server didn't send one
+    private const val YOUTUBE_WATCH_URL = "https://www.youtube.com/watch?v="
+    private const val YOUTUBE_PLAYLIST_URL = "https://www.youtube.com/playlist?list="
+
+    fun youtubeWatchUrl(videoId: String) = YOUTUBE_WATCH_URL + videoId
+    fun youtubePlaylistUrl(playlistId: String) = YOUTUBE_PLAYLIST_URL + playlistId
 
     // downloads
     val jobPollInterval = 2.seconds

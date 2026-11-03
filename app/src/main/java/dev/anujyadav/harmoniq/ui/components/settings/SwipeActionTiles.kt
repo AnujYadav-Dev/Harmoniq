@@ -12,6 +12,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import dev.anujyadav.harmoniq.services.Settings
+import dev.anujyadav.harmoniq.ui.components.OnlineSwipeScope
+import dev.anujyadav.harmoniq.ui.components.OnlineTrackAction
 import dev.anujyadav.harmoniq.ui.components.PlaylistAction
 import dev.anujyadav.harmoniq.ui.components.PlaylistSwipeScope
 import dev.anujyadav.harmoniq.ui.components.SongAction
@@ -65,6 +67,17 @@ fun SettingsSwipeActionsSections(context: ViewContext) {
             ) { it.settingsLabel() }
         }
     }
+    OnlineSwipeScope.entries.forEach { scope ->
+        SettingsSideHeading("${AppStrings.OnlineSongs} - ${scope.label}")
+        SwipeDirection.entries.forEachIndexed { i, direction ->
+            if (i > 0) HorizontalDivider()
+            SwipeActionTile(
+                direction,
+                settings.onlineSwipeAction(scope, direction),
+                OnlineTrackAction.entries,
+            ) { it.settingsLabel() }
+        }
+    }
     SettingsSideHeading(AppStrings.Reset)
     SettingsSimpleTile(
         icon = { Icon(Icons.Filled.RestartAlt, null) },
@@ -76,6 +89,9 @@ fun SettingsSwipeActionsSections(context: ViewContext) {
                 }
                 PlaylistSwipeScope.entries.forEach {
                     settings.playlistSwipeAction(it, direction).reset()
+                }
+                OnlineSwipeScope.entries.forEach {
+                    settings.onlineSwipeAction(it, direction).reset()
                 }
             }
         },

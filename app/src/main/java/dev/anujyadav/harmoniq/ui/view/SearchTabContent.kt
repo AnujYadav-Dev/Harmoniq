@@ -53,12 +53,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import dev.anujyadav.harmoniq.services.globalsearch.api.SearchResultDto
 import dev.anujyadav.harmoniq.services.globalsearch.api.SearchType
 import dev.anujyadav.harmoniq.services.groove.Groove
-import dev.anujyadav.harmoniq.ui.view.globalsearch.GlobalDownloadControls
-import dev.anujyadav.harmoniq.ui.view.globalsearch.GlobalPreviewSheet
 import dev.anujyadav.harmoniq.ui.view.globalsearch.GlobalSearchResults
+import dev.anujyadav.harmoniq.ui.view.globalsearch.GlobalSheetHost
+import dev.anujyadav.harmoniq.ui.view.globalsearch.GlobalSheetPage
+import dev.anujyadav.harmoniq.ui.view.globalsearch.rememberGlobalSheetNavigator
 import dev.anujyadav.harmoniq.ui.components.AlbumArtistDropdownMenu
 import dev.anujyadav.harmoniq.ui.components.AlbumDropdownMenu
 import dev.anujyadav.harmoniq.ui.components.ArtistDropdownMenu
@@ -103,21 +103,24 @@ fun SearchTabContent(context: ViewContext) {
     fun isChipSelected(kind: Groove.Kind) = selectedChip == null || selectedChip == kind
 
     val globalSearch = context.symphony.globalSearch
-    var isGlobalMode by rememberSaveable {
-        mutableStateOf(globalSearch.isAvailable && context.symphony.settings.searchGlobalMode.value)
-    }
+    val isGlobalSearchEnabled by globalSearch.isEnabled.collectAsState()
+    var globalModeSelected by rememberSaveable { mutableStateOf(context.symphony.settings.searchGlobalMode.value) }
+    // turning Global Search off in Settings falls back to the library, the choice is kept for later
+    val isGlobalMode = globalModeSelected && isGlobalSearchEnabled
     var globalType by rememberSaveable { mutableStateOf(context.symphony.settings.globalSearchType.value) }
+    val supportedTypes by globalSearch.supportedSearchTypes.collectAsState()
+    // a saved type the server doesn't offer (older server) shows the first one it does
+    val effectiveGlobalType = globalType.takeIf { it in supportedTypes } ?: supportedTypes.first()
     val globalState by globalSearch.searchState.collectAsState()
     val globalMeta by globalSearch.meta.collectAsState()
-    val downloadedVideoIds by globalSearch.downloadedVideoIds.collectAsState()
-    var previewResult by remember { mutableStateOf<SearchResultDto?>(null) }
+    val sheetNavigator = rememberGlobalSheetNavigator()
 
     var currentTermsRoutine: Job? = null
     fun setTerms(nTerms: String) {
         terms = nTerms
         if (isGlobalMode) {
             // debounced, deduplicated and cancelled by GlobalSearch itself
-            globalSearch.search(nTerms, globalType)
+            globalSearch.search(nTerms, effectiveGlobalType)
             return
         }
         isSearching = true
@@ -200,8 +203,8 @@ fun SearchTabContent(context: ViewContext) {
         }
     }
 
-    LaunchedEffect(isGlobalMode, globalType) {
-        context.symphony.settings.searchGlobalMode.setValue(isGlobalMode)
+    LaunchedEffect(isGlobalMode, globalType, effectiveGlobalType) {
+        if (isGlobalSearchEnabled) context.symphony.settings.searchGlobalMode.setValue(globalModeSelected)
         context.symphony.settings.globalSearchType.setValue(globalType)
         if (isGlobalMode) {
             globalSearch.ensureMeta()
@@ -271,21 +274,23 @@ fun SearchTabContent(context: ViewContext) {
             }
         )
         Spacer(modifier = Modifier.height(4.dp))
-        if (globalSearch.isAvailable) {
+        if (isGlobalSearchEnabled) {
             SearchModeSwitch(
                 isGlobalMode = isGlobalMode,
-                onChange = { isGlobalMode = it },
+                onChange = { globalModeSelected = it },
             )
             Spacer(modifier = Modifier.height(4.dp))
         }
         if (isGlobalMode) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(horizontal = 12.dp)
+                modifier = Modifier
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp)
             ) {
-                SearchType.entries.forEach {
+                supportedTypes.forEach {
                     FilterChip(
-                        selected = globalType == it,
+                        selected = effectiveGlobalType == it,
                         label = { Text(it.searchTabLabel()) },
                         onClick = { globalType = it }
                     )
@@ -293,11 +298,13 @@ fun SearchTabContent(context: ViewContext) {
             }
             Spacer(modifier = Modifier.height(4.dp))
             GlobalSearchResults(
+                context,
                 state = globalState,
                 meta = globalMeta,
-                downloadedVideoIds = downloadedVideoIds,
                 onRetry = { globalSearch.retrySearch() },
-                onOpen = { previewResult = it },
+                onOpenTrack = { sheetNavigator.open(GlobalSheetPage.Preview(it)) },
+                onOpenPlaylist = { sheetNavigator.open(GlobalSheetPage.Playlist(it)) },
+                onSeeAll = { globalType = it },
             )
         } else Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -431,13 +438,8 @@ fun SearchTabContent(context: ViewContext) {
     }
 }
 
-    previewResult?.let { result ->
-        GlobalPreviewSheet(
-            context,
-            result,
-            onDismissRequest = { previewResult = null },
-            downloadContent = { GlobalDownloadControls(context, result) },
-        )
+    if (isGlobalSearchEnabled) {
+        GlobalSheetHost(context, sheetNavigator)
     }
 }
 
@@ -481,6 +483,8 @@ private fun SearchModeSwitch(isGlobalMode: Boolean, onChange: (Boolean) -> Unit)
 }
 
 private fun SearchType.searchTabLabel() = when (this) {
+    SearchType.All -> AppStrings.All
     SearchType.Song -> AppStrings.Songs
     SearchType.Video -> AppStrings.Videos
+    SearchType.Playlist -> AppStrings.Playlists
 }

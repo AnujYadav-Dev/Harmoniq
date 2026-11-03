@@ -57,6 +57,9 @@ class ServerDownloadWorkerTest {
         partDirectory.deleteRecursively()
     }
 
+    private var refreshChangesConnection = false
+    private var refreshCalls = 0
+
     private fun worker(runAttemptCount: Int = 0, withApi: Boolean = true): ServerDownloadWorker {
         val dependencies = ServerDownloadWorker.Dependencies(
             api = if (withApi) server.api() else null,
@@ -65,6 +68,10 @@ class ServerDownloadWorkerTest {
             partDirectory = partDirectory,
             notifications = DownloadNotifications(context),
             sleep = {},
+            refreshConnection = {
+                refreshCalls++
+                refreshChangesConnection
+            },
         )
         return TestListenableWorkerBuilder<ServerDownloadWorker>(context)
             .setInputData(ServerDownloadWorker.inputData(request))
@@ -149,6 +156,31 @@ class ServerDownloadWorkerTest {
     fun unconfiguredBuildFails() = runBlocking {
         val result = worker(withApi = false).doWork()
         assertTrue(result is ListenableWorker.Result.Failure)
+        assertEquals(ErrorCodes.UNAUTHORIZED, result.outputData.getString(ServerDownloadWorker.KEY_ERROR_CODE))
+    }
+
+    @Test
+    fun noServerYetRetriesOnceTheConfigFileProvidesOne() = runBlocking {
+        refreshChangesConnection = true
+        assertTrue(worker(withApi = false).doWork() is ListenableWorker.Result.Retry)
+    }
+
+    @Test
+    fun rejectedTokenRetriesWhenTheConfigFileChanged() = runBlocking {
+        refreshChangesConnection = true
+        server.on("POST", "/v1/downloads", problem(ErrorCodes.UNAUTHORIZED, 401, false))
+        assertTrue(worker().doWork() is ListenableWorker.Result.Retry)
+        assertEquals(1, refreshCalls)
+        // not marked failed: the next run uses the new token
+        assertTrue(records.get(request.key)?.state != DownloadRecord.State.Failed)
+    }
+
+    @Test
+    fun rejectedTokenFailsWhenNothingChanged() = runBlocking {
+        server.on("POST", "/v1/downloads", problem(ErrorCodes.UNAUTHORIZED, 401, false))
+        val result = worker().doWork()
+        assertTrue(result is ListenableWorker.Result.Failure)
+        assertEquals(1, refreshCalls)
         assertEquals(ErrorCodes.UNAUTHORIZED, result.outputData.getString(ServerDownloadWorker.KEY_ERROR_CODE))
     }
 }

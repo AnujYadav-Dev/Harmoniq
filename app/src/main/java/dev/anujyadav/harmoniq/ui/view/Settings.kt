@@ -98,20 +98,19 @@ fun SettingsView(context: ViewContext, route: SettingsViewRoute) {
                         )
                     },
                 )
-                if (context.symphony.globalSearch.isAvailable) {
-                    HorizontalDivider()
-                    SettingsSimpleTile(
-                        icon = {
-                            Icon(Icons.Filled.Public, null)
-                        },
-                        title = {
-                            Text(AppStrings.GlobalSearch)
-                        },
-                        onClick = {
-                            context.navController.navigate(GlobalSearchSettingsViewRoute)
-                        },
-                    )
-                }
+                // always reachable: this is where a server is chosen or set up
+                HorizontalDivider()
+                SettingsSimpleTile(
+                    icon = {
+                        Icon(Icons.Filled.Public, null)
+                    },
+                    title = {
+                        Text(AppStrings.GlobalSearch)
+                    },
+                    onClick = {
+                        context.navController.navigate(GlobalSearchSettingsViewRoute)
+                    },
+                )
                 HorizontalDivider()
                 SettingsSimpleTile(
                     icon = {

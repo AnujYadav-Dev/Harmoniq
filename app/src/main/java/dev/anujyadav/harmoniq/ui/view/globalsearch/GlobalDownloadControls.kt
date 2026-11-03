@@ -1,10 +1,6 @@
 package dev.anujyadav.harmoniq.ui.view.globalsearch
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,11 +23,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -43,6 +37,8 @@ import dev.anujyadav.harmoniq.services.globalsearch.download.DownloadProgressDat
 import dev.anujyadav.harmoniq.services.globalsearch.download.DownloadRecords
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 import dev.anujyadav.harmoniq.utils.AppStrings
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 
 @Composable
 fun GlobalDownloadControls(context: ViewContext, result: SearchResultDto) {
@@ -52,25 +48,10 @@ fun GlobalDownloadControls(context: ViewContext, result: SearchResultDto) {
     var message by remember { mutableStateOf<String?>(null) }
     val download = downloads[DownloadRecords.key(result.videoId, format.apiValue)]
 
-    fun enqueue() {
-        message = when (globalSearch.enqueueDownload(result, format)) {
-            GlobalSearch.EnqueueResult.QueueFull -> AppStrings.DownloadQueueFull
-            GlobalSearch.EnqueueResult.Unavailable -> AppStrings.GlobalSearchAppVersionUnsupported
-            else -> null
-        }
-    }
+    // shared with the Download action of menus and swipes
+    val launchDownload = rememberDownloadLauncher(context) { message = it }
 
-    // Android 9 writes a plain file into Download/, which needs the legacy storage permission
-    val storagePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) enqueue() else message = AppStrings.StoragePermissionRequired
-    }
-
-    fun onDownloadClick() {
-        val needsPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
-                context.activity.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) !=
-                PackageManager.PERMISSION_GRANTED
-        if (needsPermission) storagePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE) else enqueue()
-    }
+    fun onDownloadClick() = launchDownload(result, format)
 
     Column(modifier = Modifier.fillMaxWidth()) {
         when (download?.state) {

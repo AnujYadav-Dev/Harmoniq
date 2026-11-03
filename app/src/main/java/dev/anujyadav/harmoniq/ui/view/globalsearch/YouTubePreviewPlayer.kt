@@ -4,18 +4,19 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.utils.loadOrCueVideo
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.options.IFramePlayerOptions
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
+import androidx.compose.runtime.getValue
 
 /**
  * The official YouTube IFrame player (android-youtube-player). It plays straight from
@@ -24,6 +25,7 @@ import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTube
 @Composable
 fun YouTubePreviewPlayer(
     videoId: String,
+    autoPlay: Boolean,
     onPlaying: () -> Unit,
     onError: (PlayerConstants.PlayerError) -> Unit,
     modifier: Modifier = Modifier,
@@ -39,8 +41,14 @@ fun YouTubePreviewPlayer(
             initialize(
                 object : AbstractYouTubePlayerListener() {
                     override fun onReady(youTubePlayer: YouTubePlayer) {
-                        // cue only: nothing plays until the user taps play
-                        youTubePlayer.cueVideo(videoId, 0f)
+                        // onReady comes once the IFrame API has loaded. loadOrCueVideo only starts
+                        // playback while the screen is resumed (it cues otherwise), so a preview
+                        // never plays while the app is in the background
+                        if (autoPlay) {
+                            youTubePlayer.loadOrCueVideo(lifecycleOwner.lifecycle, videoId, 0f)
+                        } else {
+                            youTubePlayer.cueVideo(videoId, 0f)
+                        }
                     }
 
                     override fun onStateChange(

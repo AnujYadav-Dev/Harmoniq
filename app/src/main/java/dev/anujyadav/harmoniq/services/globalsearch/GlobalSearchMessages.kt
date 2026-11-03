@@ -16,12 +16,13 @@ object GlobalSearchMessages {
     }
 
     fun forCode(code: String, retryAfterSeconds: Long? = null): String = when (code) {
-        ErrorCodes.UNAUTHORIZED -> AppStrings.GlobalSearchAppVersionUnsupported
+        ErrorCodes.UNAUTHORIZED -> AppStrings.GlobalSearchAccessRejected
         ErrorCodes.RATE_LIMITED -> retryAfterSeconds
             ?.let { AppStrings.RateLimitedTryAgainInX(it.toString()) }
             ?: AppStrings.RateLimitedTryAgainLater
         ErrorCodes.INVALID_QUERY -> AppStrings.GlobalSearchInvalidQuery
         ErrorCodes.VIDEO_UNAVAILABLE, ErrorCodes.VIDEO_NOT_FOUND -> AppStrings.VideoUnavailable
+        ErrorCodes.PLAYLIST_NOT_FOUND, ErrorCodes.INVALID_PLAYLIST_ID -> AppStrings.PlaylistUnavailable
         ErrorCodes.AGE_RESTRICTED -> AppStrings.VideoAgeRestricted
         ErrorCodes.LIVE_NOT_SUPPORTED -> AppStrings.VideoIsLive
         ErrorCodes.DURATION_LIMIT_EXCEEDED -> AppStrings.VideoTooLong

@@ -46,6 +46,9 @@ class HarmoniqServerApi(
         return getJson(url, SearchResponseDto.serializer())
     }
 
+    suspend fun playlist(playlistId: String): PlaylistDto =
+        getJson(url("playlists", playlistId), PlaylistDto.serializer())
+
     suspend fun track(videoId: String): SongMetadataDto =
         getJson(url("videos", videoId, "track"), SongMetadataDto.serializer())
 

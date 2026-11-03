@@ -1,6 +1,5 @@
 package dev.anujyadav.harmoniq.ui.view.globalsearch
 
-import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,20 +15,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,119 +34,132 @@ import coil.compose.AsyncImage
 import dev.anujyadav.harmoniq.services.globalsearch.api.PreviewDto
 import dev.anujyadav.harmoniq.services.globalsearch.api.SearchResultDto
 import dev.anujyadav.harmoniq.services.globalsearch.api.SongMetadataDto
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.runtime.collectAsState
+import dev.anujyadav.harmoniq.ui.components.LabeledIconButton
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
-import dev.anujyadav.harmoniq.utils.ActivityUtils
 import dev.anujyadav.harmoniq.utils.AppStrings
-
-private sealed interface Loadable<out T> {
-    data object Loading : Loadable<Nothing>
-    data class Ready<T>(val value: T) : Loadable<T>
-    data object Failed : Loadable<Nothing>
-}
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 
 /**
- * Preview of one search result: what the server will tag the file with (`/track`) and the
- * official YouTube player (`/preview`). [downloadContent] holds the download controls.
+ * Preview of one song or video: what the server will tag the file with (`/track`) and the
+ * official YouTube player (`/preview`), the actions menu and the download controls.
+ * Shown as a page of [GlobalSheetHost], so it can sit on top of a playlist.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GlobalPreviewSheet(
+fun GlobalPreviewPage(
     context: ViewContext,
     result: SearchResultDto,
-    onDismissRequest: () -> Unit,
-    downloadContent: @Composable () -> Unit,
+    sourcePlaylistId: String? = null,
 ) {
     val globalSearch = context.symphony.globalSearch
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val autoPlay by context.symphony.settings.globalSearchAutoplayPreviews.flow.collectAsState()
     val track by produceState<Loadable<SongMetadataDto>>(Loadable.Loading, result.videoId) {
-        value = globalSearch.track(result.videoId).fold({ Loadable.Ready(it) }, { Loadable.Failed })
+        value = Loadable.of(globalSearch.track(result.videoId))
     }
     val preview by produceState<Loadable<PreviewDto>>(Loadable.Loading, result.videoId) {
-        value = globalSearch.preview(result.videoId).fold({ Loadable.Ready(it) }, { Loadable.Failed })
+        value = Loadable.of(globalSearch.preview(result.videoId))
     }
     var playerFailed by remember(result.videoId) { mutableStateOf(false) }
 
-    ModalBottomSheet(onDismissRequest = onDismissRequest, sheetState = sheetState) {
-        Column(
-            modifier = Modifier
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .navigationBarsPadding()
-        ) {
-            val readyPreview = (preview as? Loadable.Ready)?.value
-            val canEmbed = readyPreview?.embeddable == true && !readyPreview.ageRestricted && !playerFailed
-            Box(modifier = Modifier.clip(RoundedCornerShape(12.dp))) {
-                when {
-                    canEmbed -> YouTubePreviewPlayer(
-                        videoId = result.videoId,
-                        // one audio source at a time
-                        onPlaying = { context.symphony.radio.pause() },
-                        onError = { playerFailed = true },
-                    )
+    Column(
+        modifier = Modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp)
+            .navigationBarsPadding()
+    ) {
+        val readyPreview = (preview as? Loadable.Ready)?.value
+        val canEmbed = readyPreview?.embeddable == true && !readyPreview.ageRestricted && !playerFailed
+        Box(modifier = Modifier.clip(RoundedCornerShape(12.dp))) {
+            when {
+                // only created once /preview says it can embed, so it never plays before that
+                canEmbed -> YouTubePreviewPlayer(
+                    videoId = result.videoId,
+                    autoPlay = autoPlay,
+                    // one audio source at a time
+                    onPlaying = { context.symphony.radio.pause() },
+                    onError = { playerFailed = true },
+                )
 
-                    else -> AsyncImage(
-                        model = (track as? Loadable.Ready)?.value?.artworkUrl ?: result.bestThumbnail(),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(COVER_ASPECT_RATIO),
-                    )
-                }
+                else -> AsyncImage(
+                    model = (track as? Loadable.Ready)?.value?.artworkUrl ?: result.bestThumbnail(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(COVER_ASPECT_RATIO),
+                )
             }
-            if (preview is Loadable.Loading) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
-            if (!canEmbed && preview !is Loadable.Loading) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        AppStrings.PreviewNotAvailable,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.weight(1f),
-                    )
-                    OutlinedButton(
-                        onClick = {
-                            val url = readyPreview?.watchUrl ?: result.watchUrl ?: youtubeWatchUrl(result.videoId)
-                            ActivityUtils.startBrowserActivity(context.activity, Uri.parse(url))
-                        }
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.OpenInNew, null)
-                        Spacer(modifier = Modifier.padding(start = 6.dp))
-                        Text(AppStrings.OpenInYoutube)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            val metadata = (track as? Loadable.Ready)?.value
-            Text(
-                metadata?.title ?: result.title,
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                (metadata?.artists?.takeIf { it.isNotEmpty() } ?: result.displayArtists).joinToString(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            when (track) {
-                Loadable.Loading -> LinearProgressIndicator(modifier = Modifier.fillMaxWidth(TRACK_LOADING_WIDTH))
-                Loadable.Failed -> result.album?.name?.let { DetailLine(it) }
-                is Loadable.Ready -> TrackDetails((track as Loadable.Ready<SongMetadataDto>).value, result)
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-            downloadContent()
-            Spacer(modifier = Modifier.height(24.dp))
         }
+        if (preview is Loadable.Loading) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
+        if (!canEmbed && preview !is Loadable.Loading) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    AppStrings.PreviewNotAvailable,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedButton(
+                    onClick = { openLink(context, readyPreview?.watchUrl ?: result.youtubeUrl()) }
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.OpenInNew, null)
+                    Spacer(modifier = Modifier.padding(start = 6.dp))
+                    Text(AppStrings.OpenInYoutube)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        val metadata = (track as? Loadable.Ready)?.value
+        Row(verticalAlignment = Alignment.Top) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    metadata?.title ?: result.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    (metadata?.artists?.takeIf { it.isNotEmpty() } ?: result.displayArtists).joinToString(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            // every action except Preview, which is this page
+            OnlineTrackActionsHost(context, result, sourcePlaylistId = sourcePlaylistId) { actions ->
+                var showOptionsMenu by remember { mutableStateOf(false) }
+                LabeledIconButton(
+                    icon = Icons.Filled.MoreVert,
+                    label = AppStrings.MoreOptions,
+                    onClick = { showOptionsMenu = !showOptionsMenu },
+                ) {
+                    OnlineTrackDropdownMenu(
+                        actions,
+                        expanded = showOptionsMenu,
+                        onDismissRequest = { showOptionsMenu = false },
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        when (val state = track) {
+            Loadable.Loading -> LinearProgressIndicator(modifier = Modifier.fillMaxWidth(TRACK_LOADING_WIDTH))
+            is Loadable.Failed -> result.album?.name?.let { DetailLine(it) }
+            is Loadable.Ready -> TrackDetails(state.value, result)
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+        GlobalDownloadControls(context, result)
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
 @Composable
-private fun TrackDetails(track: SongMetadataDto, result: SearchResultDto) {
+fun TrackDetails(track: SongMetadataDto, result: SearchResultDto) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val albumLine = listOfNotNull(
             track.album ?: result.album?.name,
@@ -181,8 +188,6 @@ private fun TrackDetails(track: SongMetadataDto, result: SearchResultDto) {
 private fun DetailLine(text: String) {
     Text(text, style = MaterialTheme.typography.bodyMedium)
 }
-
-private fun youtubeWatchUrl(videoId: String) = "https://www.youtube.com/watch?v=$videoId"
 
 private const val DETAIL_SEPARATOR = " · "
 private const val YEAR_LENGTH = 4

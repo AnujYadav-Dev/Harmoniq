@@ -12,4 +12,5 @@ class Database(symphony: Symphony) {
     val lyricsCache = LyricsCacheStore(symphony)
     val songCache get() = cache.songs()
     val playlists get() = persistent.playlists()
+    val watchList get() = persistent.watchList()
 }

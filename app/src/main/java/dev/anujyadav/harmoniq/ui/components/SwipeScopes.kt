@@ -54,22 +54,44 @@ enum class PlaylistSwipeScope(
     }
 }
 
+/**
+ * The places Global Search songs and videos are shown in, see [SongSwipeScope].
+ */
+enum class OnlineSwipeScope(
+    val key: String,
+    val label: String,
+    private val defaultRight: OnlineTrackAction?,
+    private val defaultLeft: OnlineTrackAction?,
+) {
+    Search("search", AppStrings.Search, OnlineTrackAction.Download, OnlineTrackAction.AddToWatchList),
+    Playlist("playlist", AppStrings.Playlist, OnlineTrackAction.Download, OnlineTrackAction.AddToWatchList),
+    WatchList("watch_list", AppStrings.WatchList, OnlineTrackAction.Download, OnlineTrackAction.Remove);
+
+    fun defaultAction(direction: SwipeDirection) = when (direction) {
+        SwipeDirection.Right -> defaultRight
+        SwipeDirection.Left -> defaultLeft
+    }
+}
+
 // provided once per screen, so nested lists pick up the right configuration
 val LocalSongSwipeScope = staticCompositionLocalOf { SongSwipeScope.Songs }
 val LocalPlaylistSwipeScope = staticCompositionLocalOf { PlaylistSwipeScope.Library }
+val LocalOnlineSwipeScope = staticCompositionLocalOf { OnlineSwipeScope.Search }
 
 /**
- * Sets the swipe configuration used by every song and playlist row inside [content].
+ * Sets the swipe configuration used by every song, playlist and online row inside [content].
  */
 @Composable
 fun ProvideSwipeScope(
     songScope: SongSwipeScope = LocalSongSwipeScope.current,
     playlistScope: PlaylistSwipeScope = LocalPlaylistSwipeScope.current,
+    onlineScope: OnlineSwipeScope = LocalOnlineSwipeScope.current,
     content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(
         LocalSongSwipeScope provides songScope,
         LocalPlaylistSwipeScope provides playlistScope,
+        LocalOnlineSwipeScope provides onlineScope,
         content = content,
     )
 }

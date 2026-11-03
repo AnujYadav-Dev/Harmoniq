@@ -6,6 +6,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -185,7 +186,8 @@ fun BaseView(symphony: Symphony, activity: MainActivity) {
             }
         }
 
-        if (symphony.globalSearch.isAvailable) {
+        val isGlobalSearchEnabled by symphony.globalSearch.isEnabled.collectAsState()
+        if (isGlobalSearchEnabled) {
             LibraryLinkPrompt(context)
         }
 

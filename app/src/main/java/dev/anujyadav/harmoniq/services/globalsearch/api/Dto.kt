@@ -1,5 +1,6 @@
 package dev.anujyadav.harmoniq.services.globalsearch.api
 
+import dev.anujyadav.harmoniq.services.globalsearch.ServerConfig
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -12,9 +13,20 @@ val ServerJson = Json {
     coerceInputValues = true
 }
 
+// declaration order is the order of the chips in the Search tab
 enum class SearchType(val apiValue: String) {
+    All("all"),
     Song("song"),
     Video("video"),
+    Playlist("playlist");
+
+    companion object {
+        // what a server without `features.search_types` (before v0.3.0) understands
+        val legacy = listOf(Song, Video)
+
+        fun supported(apiValues: List<String>?) =
+            apiValues?.let { values -> entries.filter { it.apiValue in values } }?.ifEmpty { null } ?: legacy
+    }
 }
 
 enum class DownloadFormat(val apiValue: String, val minSdk: Int) {
@@ -60,10 +72,20 @@ data class MetaDto(
     @SerialName("default_format") val defaultFormat: String? = null,
     @SerialName("max_duration_seconds") val maxDurationSeconds: Int? = null,
     val limits: LimitsDto? = null,
+    val features: FeaturesDto? = null,
     val status: ServerStatusDto? = null,
 ) {
     val youtubeStatus get() = YoutubeStatus.from(status?.youtube)
+
+    val supportedSearchTypes get() = SearchType.supported(features?.searchTypes)
 }
+
+@Serializable
+data class FeaturesDto(
+    // missing on servers before v0.3.0, see [SearchType.legacy]
+    @SerialName("search_types") val searchTypes: List<String>? = null,
+    @SerialName("max_playlist_tracks") val maxPlaylistTracks: Int? = null,
+)
 
 @Serializable
 data class LimitsDto(
@@ -86,7 +108,53 @@ data class SearchResponseDto(
     val source: String? = null,
     val cached: Boolean = false,
     val results: List<SearchResultDto> = emptyList(),
+    // type=playlist
+    val playlists: List<PlaylistResultDto>? = null,
+    // type=all
+    val sections: SearchSectionsDto? = null,
 )
+
+@Serializable
+data class SearchSectionsDto(
+    val songs: List<SearchResultDto> = emptyList(),
+    val videos: List<SearchResultDto> = emptyList(),
+    val playlists: List<PlaylistResultDto> = emptyList(),
+    // section name ("songs", "videos", "playlists") -> error code, for sections that failed
+    val errors: Map<String, String> = emptyMap(),
+)
+
+@Serializable
+data class PlaylistResultDto(
+    @SerialName("playlist_id") val playlistId: String,
+    val title: String,
+    val author: String? = null,
+    @SerialName("item_count") val itemCount: Int? = null,
+    val thumbnails: List<ThumbnailDto> = emptyList(),
+    @SerialName("watch_url") val watchUrl: String? = null,
+) {
+    fun bestThumbnail() = thumbnails.maxByOrNull { (it.width ?: 0) * (it.height ?: 0) }?.url
+
+    fun shareUrl() = watchUrl ?: ServerConfig.youtubePlaylistUrl(playlistId)
+}
+
+/** `GET /playlists/{id}`: tracks come in the search result shape, so rows and actions are shared. */
+@Serializable
+data class PlaylistDto(
+    @SerialName("playlist_id") val playlistId: String,
+    val title: String,
+    val author: String? = null,
+    val description: String? = null,
+    @SerialName("track_count") val trackCount: Int? = null,
+    val duration: Int? = null,
+    val thumbnails: List<ThumbnailDto> = emptyList(),
+    @SerialName("watch_url") val watchUrl: String? = null,
+    val tracks: List<SearchResultDto> = emptyList(),
+    val truncated: Boolean = false,
+) {
+    fun bestThumbnail() = thumbnails.maxByOrNull { (it.width ?: 0) * (it.height ?: 0) }?.url
+
+    fun shareUrl() = watchUrl ?: ServerConfig.youtubePlaylistUrl(playlistId)
+}
 
 @Serializable
 data class SearchResultDto(
@@ -109,6 +177,14 @@ data class SearchResultDto(
     val displayArtists get() = artistNames.ifEmpty { listOfNotNull(channel?.name) }
 
     fun bestThumbnail() = thumbnails.maxByOrNull { (it.width ?: 0) * (it.height ?: 0) }?.url
+
+    val isSong get() = resultType == SearchType.Song.apiValue
+
+    // the server's link (music.youtube.com for songs), what people expect to receive
+    fun shareUrl() = watchUrl ?: youtubeUrl()
+
+    // always www.youtube.com, which the YouTube app handles
+    fun youtubeUrl() = ServerConfig.youtubeWatchUrl(videoId)
 }
 
 @Serializable

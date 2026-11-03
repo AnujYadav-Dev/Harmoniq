@@ -37,6 +37,8 @@ object ErrorCodes {
     const val JOB_NOT_READY = "job_not_ready"
     const val JOB_EXPIRED = "job_expired"
     const val VIDEO_NOT_FOUND = "video_not_found"
+    const val PLAYLIST_NOT_FOUND = "playlist_not_found"
+    const val INVALID_PLAYLIST_ID = "invalid_playlist_id"
     const val VIDEO_UNAVAILABLE = "video_unavailable"
     const val AGE_RESTRICTED = "age_restricted"
     const val LIVE_NOT_SUPPORTED = "live_not_supported"

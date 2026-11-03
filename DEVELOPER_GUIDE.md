@@ -24,7 +24,7 @@ Detailed topics live in [`docs/`](docs/):
 | Item | Value | Defined in |
 |------|-------|------------|
 | Application ID | `dev.anujyadav.harmoniq` (`.debug` / `.canary` suffixes on those variants) | `app/build.gradle.kts` |
-| Version | `versionName = "1.3.0"`, `versionCode = 4` | `app/build.gradle.kts` |
+| Version | `versionName = "1.4.0"`, `versionCode = 5` | `app/build.gradle.kts` |
 | Min / target / compile SDK | 28 (Android 9) / 34 (Android 14) / 35 | `gradle/libs.versions.toml` |
 | Gradle / AGP / Kotlin | 8.10.2 / 8.7.3 / 2.1.0 | `gradle/wrapper/gradle-wrapper.properties`, `gradle/libs.versions.toml` |
 | JDK | 17 | `app/build.gradle.kts` (`JavaVersion.VERSION_17`) |

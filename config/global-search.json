@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "server_url": "",
-  "app_token": "",
+  "server_url": "https://harmoniq-server.curio.dpdns.org",
+  "app_token": "sk_0a5e75df484b2ed6e6d912aa864ffe9db4dfb87a105da07e",
   "enabled": true,
   "message": null
 }

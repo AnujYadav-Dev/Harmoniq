@@ -63,6 +63,11 @@ object ServerConfig {
 
     // library
     val rescanStartTimeout = 5.seconds
+    val libraryChangeDebounce = 1.seconds
+    val sharingStopTimeout = 5.seconds
+
+    // how often an unavailable server is checked again while its state is on screen
+    val serverRecheckInterval = 30.seconds
 
     // storage
     const val DOWNLOAD_FOLDER_NAME = "Harmoniq"

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 
 
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyItemScope
 
 
 import androidx.compose.foundation.lazy.LazyListScope
@@ -92,6 +93,7 @@ enum class SongListType {
     Default,
     Playlist,
     Album,
+    Downloads,
 }
 
 enum class MediaSortBarPlacement {
@@ -134,6 +136,16 @@ fun SongList(
         }
     }
 
+    val alphabetIndex = rememberAlphabetIndex(
+        context,
+        items = visibleSongIds,
+        sortKey = sortBy,
+        textOf = sortBy.alphabetText()?.let { textOf ->
+            { songId: String -> context.symphony.groove.song.get(songId)?.let(textOf) }
+        },
+    )
+    val firstSongItem = remember { FirstSongItem() }
+
     val mediaSortBar = @Composable {
         MediaSortBar(
             context,
@@ -167,16 +179,26 @@ fun SongList(
 
             else -> {
                 val lazyListState = rememberLazyListState()
+                AlphabetIndexedContent(
+                    sections = alphabetIndex,
+                    onJumpToItem = { lazyListState.scrollToItem(firstSongItem.index + it) },
+                ) {
                 LazyColumn(
                     state = lazyListState,
-                    modifier = Modifier.drawScrollBar(lazyListState)
+                    modifier = when {
+                        // the bar already takes that edge
+                        alphabetIndex.isEmpty() -> Modifier.drawScrollBar(lazyListState)
+                        else -> Modifier
+                    },
                 ) {
-                    leadingContent?.invoke(this)
+                    val itemsBeforeSongs = CountingLazyListScope(this)
+                    leadingContent?.invoke(itemsBeforeSongs)
                     if (sortBarPlacement == MediaSortBarPlacement.Inline) {
-                        item(contentType = SongListItemType.SortBar) {
+                        itemsBeforeSongs.item(contentType = SongListItemType.SortBar) {
                             mediaSortBar()
                         }
                     }
+                    firstSongItem.index = itemsBeforeSongs.count
                     if (visibleSongIds.isEmpty()) {
                         item(contentType = SongListItemType.Empty) {
                             SubtleCaptionText(
@@ -216,6 +238,7 @@ fun SongList(
                     }
                     trailingContent?.invoke(this)
                 }
+                }
             }
         }
     }
@@ -233,6 +256,51 @@ fun SongList(
 private enum class SongListItemType {
     SortBar,
     Empty,
+}
+
+// songs start after any header items, this is where the alphabet index jumps relative to
+private class FirstSongItem(var index: Int = 0)
+
+private class CountingLazyListScope(
+    private val delegate: LazyListScope,
+) : LazyListScope by delegate {
+    var count = 0
+        private set
+
+    override fun item(
+        key: Any?,
+        contentType: Any?,
+        content: @Composable LazyItemScope.() -> Unit,
+    ) {
+        count++
+        delegate.item(key, contentType, content)
+    }
+
+    override fun items(
+        count: Int,
+        key: ((index: Int) -> Any)?,
+        contentType: (index: Int) -> Any?,
+        itemContent: @Composable LazyItemScope.(index: Int) -> Unit,
+    ) {
+        this.count += count
+        delegate.items(count, key, contentType, itemContent)
+    }
+}
+
+// null for sorts that aren't alphabetical
+internal fun SongRepository.SortBy.alphabetText(): ((Song) -> String?)? = when (this) {
+    SongRepository.SortBy.TITLE -> { song -> song.title }
+    SongRepository.SortBy.ARTIST -> { song -> song.artists.firstOrNull() }
+    SongRepository.SortBy.ALBUM -> { song -> song.album }
+    SongRepository.SortBy.COMPOSER -> { song -> song.composers.firstOrNull() }
+    SongRepository.SortBy.ALBUM_ARTIST -> { song -> song.albumArtists.firstOrNull() }
+    SongRepository.SortBy.FILENAME -> { song -> song.filename }
+    SongRepository.SortBy.CUSTOM,
+    SongRepository.SortBy.DURATION,
+    SongRepository.SortBy.DATE_MODIFIED,
+    SongRepository.SortBy.YEAR,
+    SongRepository.SortBy.TRACK_NUMBER,
+        -> null
 }
 
 @Composable
@@ -280,6 +348,7 @@ fun SongListType.getLastUsedSortBy(context: ViewContext) = when (this) {
     SongListType.Default -> context.symphony.settings.lastUsedSongsSortBy
     SongListType.Album -> context.symphony.settings.lastUsedAlbumSongsSortBy
     SongListType.Playlist -> context.symphony.settings.lastUsedPlaylistSongsSortBy
+    SongListType.Downloads -> context.symphony.settings.lastUsedDownloadSongsSortBy
 }
 
 fun SongListType.setLastUsedSortBy(context: ViewContext, sort: SongRepository.SortBy) =
@@ -287,12 +356,14 @@ fun SongListType.setLastUsedSortBy(context: ViewContext, sort: SongRepository.So
         SongListType.Default -> context.symphony.settings.lastUsedSongsSortBy.setValue(sort)
         SongListType.Playlist -> context.symphony.settings.lastUsedPlaylistSongsSortBy.setValue(sort)
         SongListType.Album -> context.symphony.settings.lastUsedAlbumSongsSortBy.setValue(sort)
+        SongListType.Downloads -> context.symphony.settings.lastUsedDownloadSongsSortBy.setValue(sort)
     }
 
 fun SongListType.getLastUsedSortReverse(context: ViewContext) = when (this) {
     SongListType.Default -> context.symphony.settings.lastUsedSongsSortReverse
     SongListType.Playlist -> context.symphony.settings.lastUsedPlaylistSongsSortReverse
     SongListType.Album -> context.symphony.settings.lastUsedAlbumSongsSortReverse
+    SongListType.Downloads -> context.symphony.settings.lastUsedDownloadSongsSortReverse
 }
 
 fun SongListType.setLastUsedSortReverse(context: ViewContext, reverse: Boolean) = when (this) {
@@ -302,4 +373,5 @@ fun SongListType.setLastUsedSortReverse(context: ViewContext, reverse: Boolean) 
     )
 
     SongListType.Album -> context.symphony.settings.lastUsedAlbumSongsSortReverse.setValue(reverse)
+    SongListType.Downloads -> context.symphony.settings.lastUsedDownloadSongsSortReverse.setValue(reverse)
 }

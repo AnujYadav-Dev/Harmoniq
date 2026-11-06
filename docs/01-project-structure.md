@@ -55,7 +55,7 @@ Root package: `app/src/main/java/dev/anujyadav/harmoniq/`
 
 ```text
 harmoniq/
-├── MainActivity.kt          # Single activity: splash screen, theme session, sets Compose content
+├── HarmoniqActivity.kt          # Single activity: splash screen, theme session, sets Compose content
 ├── ErrorActivity.kt         # Shown by the global uncaught-exception handler (crash screen)
 ├── ActivityIgnition.kt      # ViewModel that keeps the splash screen up until the first frame
 ├── Symphony.kt              # App-wide ViewModel; owns settings, database, groove, radio; lifecycle hooks
@@ -95,7 +95,7 @@ harmoniq/
 | `app/build.gradle.kts` | `versionCode` / `versionName`, signing config, build types, ABI splits, R8 |
 | `gradle/libs.versions.toml` | Change any library/SDK/plugin version here, not in the module files |
 | `app/proguard-rules.pro` | Keep-rules for kotlinx.serialization / Navigation routes in minified builds |
-| `app/src/main/AndroidManifest.xml` | Permissions, `MainActivity`, `ErrorActivity`, `RadioNotificationService`, WorkManager's `SystemForegroundService` (`dataSync`) for downloads |
+| `app/src/main/AndroidManifest.xml` | Permissions, `HarmoniqActivity` and its launcher icon aliases, `ErrorActivity`, `RadioNotificationService`, WorkManager's `SystemForegroundService` (`dataSync`) for downloads |
 | `app/src/debug/res/xml/network_security_config.xml` | Lets **debug** builds use plain `http://` (local server); other builds are HTTPS-only |
 | `services/globalsearch/ServerConfig.kt` | Global Search URL/token (from `BuildConfig`), timeouts and limits |
 | `app/src/main/res/values/splash.xml` | Splash screen themes (one per accent color) |

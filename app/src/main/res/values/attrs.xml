@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- fill colors of the splash logo, set by each Theme.Harmoniq.SplashScreen style -->
+    <attr name="splashLogoInk" format="color" />
+    <attr name="splashLogoAccent" format="color" />
+</resources>

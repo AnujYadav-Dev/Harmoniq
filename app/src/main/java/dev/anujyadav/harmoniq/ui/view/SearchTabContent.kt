@@ -4,11 +4,14 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -35,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -47,9 +51,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -74,6 +81,7 @@ import dev.anujyadav.harmoniq.utils.joinToStringIfNotEmpty
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import dev.anujyadav.harmoniq.ui.components.AlbumArtistListItem
@@ -91,9 +99,9 @@ private data class SearchTabResult(
     val playlistIds: List<String>,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun SearchTabContent(context: ViewContext) {
+fun SearchTabContent(context: ViewContext, focusToggles: Flow<Unit>) {
     val coroutineScope = rememberCoroutineScope()
     var terms by rememberSaveable { mutableStateOf("") }
     var isSearching by remember { mutableStateOf(false) }
@@ -194,8 +202,25 @@ fun SearchTabContent(context: ViewContext) {
     }
 
     val configuration = LocalConfiguration.current
-    val textFieldFocusRequester = FocusRequester()
+    val textFieldFocusRequester = remember { FocusRequester() }
     val chipsScrollState = rememberScrollState()
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    var isTextFieldFocused by remember { mutableStateOf(false) }
+    val isKeyboardVisible by rememberUpdatedState(WindowInsets.isImeVisible)
+
+    LaunchedEffect(focusToggles) {
+        focusToggles.collect {
+            when {
+                // Back closes the keyboard but keeps the focus, that case should reopen it
+                isTextFieldFocused && isKeyboardVisible -> focusManager.clearFocus()
+                else -> {
+                    textFieldFocusRequester.requestFocus()
+                    keyboardController?.show()
+                }
+            }
+        }
+    }
 
     LaunchedEffect(LocalContext.current) {
         snapshotFlow { configuration.orientation }.collect {
@@ -219,10 +244,7 @@ fun SearchTabContent(context: ViewContext) {
         isRefreshing = isUpdating && !isGlobalMode,
         onRefresh = {
             when {
-                isGlobalMode -> {
-                    globalSearch.refreshMeta()
-                    globalSearch.retrySearch()
-                }
+                isGlobalMode -> globalSearch.retryConnection()
 
                 else -> context.symphony.groove.fetch(Groove.FetchOptions(resetInMemoryCache = true))
             }
@@ -246,7 +268,8 @@ fun SearchTabContent(context: ViewContext) {
         TextField(
             modifier = Modifier
                 .fillMaxWidth()
-                .focusRequester(textFieldFocusRequester),
+                .focusRequester(textFieldFocusRequester)
+                .onFocusChanged { isTextFieldFocused = it.isFocused },
             keyboardOptions = KeyboardOptions(
                 imeAction = ImeAction.Search,
             ),

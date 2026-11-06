@@ -8,11 +8,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Colorize
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PhotoSizeSelectLarge
+import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material.icons.filled.TextFormat
 import androidx.compose.material.icons.filled.TextIncrease
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -30,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import dev.anujyadav.harmoniq.ui.components.IconButtonPlaceholder
 import dev.anujyadav.harmoniq.ui.components.TopAppBarMinimalTitle
+import dev.anujyadav.harmoniq.ui.components.settings.SettingsAppIconTile
 import dev.anujyadav.harmoniq.ui.components.settings.SettingsFloatInputTile
 import dev.anujyadav.harmoniq.ui.components.settings.SettingsOptionTile
 import dev.anujyadav.harmoniq.ui.components.settings.SettingsSideHeading
@@ -37,6 +41,8 @@ import dev.anujyadav.harmoniq.ui.components.settings.SettingsHomePlaylistsSectio
 import dev.anujyadav.harmoniq.ui.components.settings.SettingsSwitchTile
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 import dev.anujyadav.harmoniq.ui.theme.PrimaryThemeColor
+import dev.anujyadav.harmoniq.ui.theme.SplashAppearance
+import dev.anujyadav.harmoniq.ui.theme.SplashTheme
 import dev.anujyadav.harmoniq.ui.theme.SymphonyTypography
 import dev.anujyadav.harmoniq.ui.theme.ThemeColors
 import dev.anujyadav.harmoniq.ui.theme.ThemeMode
@@ -63,6 +69,8 @@ fun AppearanceSettingsView(context: ViewContext) {
     val showBottomNavLabels by context.symphony.settings.showBottomNavLabels.flow.collectAsState()
     val primaryColor by context.symphony.settings.primaryColor.flow.collectAsState()
     val randomizePrimaryColor by context.symphony.settings.randomizePrimaryColor.flow.collectAsState()
+    val splashAppearance by context.symphony.settings.splashAppearance.flow.collectAsState()
+    val alphabetIndexEnabled by context.symphony.settings.alphabetIndexEnabled.flow.collectAsState()
     val fontScale by context.symphony.settings.fontScale.flow.collectAsState()
     val contentScale by context.symphony.settings.contentScale.flow.collectAsState()
 
@@ -231,6 +239,52 @@ fun AppearanceSettingsView(context: ViewContext) {
                         enabled = !useMaterialYou,
                         onChange = { value ->
                             context.symphony.settings.randomizePrimaryColor.setValue(value)
+                        }
+                    )
+                    // before Android 12 the system only ever shows the neutral splash
+                    if (SplashTheme.isCustomizable) {
+                        HorizontalDivider()
+                        SettingsOptionTile(
+                            icon = {
+                                Icon(Icons.Filled.AutoAwesome, null)
+                            },
+                            title = {
+                                Text(AppStrings.LoadingScreen)
+                            },
+                            value = splashAppearance,
+                            values = mapOf(
+                                SplashAppearance.MatchAppTheme to AppStrings.MatchAppTheme,
+                                SplashAppearance.RandomColor to AppStrings.RandomColor,
+                                SplashAppearance.Neutral to AppStrings.NeutralBlackAndWhite,
+                            ),
+                            captions = SplashAppearance.entries
+                                .associateWith { AppStrings.AppliesOnNextStart },
+                            onChange = { value ->
+                                context.symphony.settings.splashAppearance.setValue(value)
+                            }
+                        )
+                    }
+                    HorizontalDivider()
+                    SettingsAppIconTile(
+                        context,
+                        icon = {
+                            Icon(Icons.Filled.Apps, null)
+                        },
+                    )
+                    HorizontalDivider()
+                    SettingsSwitchTile(
+                        icon = {
+                            Icon(Icons.Filled.SortByAlpha, null)
+                        },
+                        title = {
+                            Text(AppStrings.AlphabetSidebar)
+                        },
+                        subtitle = {
+                            Text(AppStrings.AlphabetSidebarDescription)
+                        },
+                        value = alphabetIndexEnabled,
+                        onChange = { value ->
+                            context.symphony.settings.alphabetIndexEnabled.setValue(value)
                         }
                     )
                     SettingsHomePlaylistsSection(context)

@@ -4,7 +4,11 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -38,6 +42,7 @@ import dev.anujyadav.harmoniq.ui.helpers.SlideTransition
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 import dev.anujyadav.harmoniq.ui.view.navigation.MainTab
 import dev.anujyadav.harmoniq.utils.AppStrings
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.serialization.Serializable
 import dev.anujyadav.harmoniq.ui.components.PlaylistSwipeScope
 import dev.anujyadav.harmoniq.ui.components.ProvideSwipeScope
@@ -47,7 +52,7 @@ import dev.anujyadav.harmoniq.ui.components.LabeledIconButton
 @Serializable
 object MainShellViewRoute
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun MainShellView(context: ViewContext) {
 
@@ -55,6 +60,8 @@ fun MainShellView(context: ViewContext) {
     val showBottomNavLabels by context.symphony.settings.showBottomNavLabels.flow.collectAsState()
     var showNewPlaylistDialog by remember { mutableStateOf(false) }
     var showMediaFoldersDialog by remember { mutableStateOf(false) }
+    // an event rather than state, so coming back to the tab doesn't replay the last toggle
+    val searchFocusToggles = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
 
     if (showNewPlaylistDialog) {
         NewPlaylistDialog(
@@ -153,15 +160,19 @@ fun MainShellView(context: ViewContext) {
                         songScope = SongSwipeScope.Search,
                         playlistScope = PlaylistSwipeScope.Search,
                     ) {
-                        SearchTabContent(context)
+                        SearchTabContent(context, focusToggles = searchFocusToggles)
                     }
                     MainTab.LIBRARY -> LibraryTabContent(context)
                 }
             }
         },
         bottomBar = {
-            Column {
-                NowPlayingBottomBar(context, false)
+            // on Search the bar rides above the keyboard, so it can be tapped to dismiss it
+            val isOnSearch = currentTab == MainTab.SEARCH
+            Column(modifier = if (isOnSearch) Modifier.imePadding() else Modifier) {
+                if (!isOnSearch || !WindowInsets.isImeVisible) {
+                    NowPlayingBottomBar(context, false)
+                }
                 NavigationBar {
                     MainTab.entries.forEach { tab ->
                         val isSelected = currentTab == tab
@@ -191,8 +202,9 @@ fun MainShellView(context: ViewContext) {
                             } else null,
                             alwaysShowLabel = showBottomNavLabels,
                             onClick = {
-                                if (!isSelected) {
-                                    context.symphony.settings.lastMainTab.setValue(tab)
+                                when {
+                                    !isSelected -> context.symphony.settings.lastMainTab.setValue(tab)
+                                    tab == MainTab.SEARCH -> searchFocusToggles.tryEmit(Unit)
                                 }
                             }
                         )

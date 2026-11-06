@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.anujyadav.harmoniq.ui.components.verticalSwipeable
 import dev.anujyadav.harmoniq.ui.helpers.ScreenOrientation
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 import dev.anujyadav.harmoniq.ui.view.NowPlayingData
@@ -36,7 +37,14 @@ fun NowPlayingBody(context: ViewContext, data: NowPlayingData) {
     }
 
     data.run {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalSwipeable(
+                    onSwipeUp = { context.openQueueFromNowPlaying() },
+                    onSwipeDown = { context.closeNowPlaying() },
+                ),
+        ) {
             val orientation = ScreenOrientation.fromConstraints(this@BoxWithConstraints)
 
             Scaffold(

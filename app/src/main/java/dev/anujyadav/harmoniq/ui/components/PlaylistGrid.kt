@@ -1,5 +1,6 @@
 ﻿package dev.anujyadav.harmoniq.ui.components
 
+import dev.anujyadav.harmoniq.utils.AlphabetIndex
 import androidx.compose.foundation.layout.Column
 
 
@@ -76,6 +77,16 @@ fun PlaylistGrid(
             ResponsiveGridColumns(horizontalGridColumns, verticalGridColumns)
         }
     }
+    val alphabetIndex = rememberAlphabetIndex(
+        context,
+        items = sortedPlaylistIds,
+        sortKey = sortBy,
+        minItems = AlphabetIndex.MIN_COLLECTION_ITEMS,
+        textOf = when (sortBy) {
+            PlaylistRepository.SortBy.TITLE -> { id: String -> context.symphony.groove.playlist.get(id)?.title }
+            else -> null
+        },
+    )
     var showModifyLayoutSheet by remember { mutableStateOf(false) }
 
     MediaSortBarScaffold(
@@ -124,7 +135,7 @@ fun PlaylistGrid(
                     }
                 )
 
-                else -> ResponsiveGrid(gridColumns, layout) {
+                else -> ResponsiveGrid(gridColumns, layout, alphabetIndex = alphabetIndex) {
                     itemsIndexed(
                         sortedPlaylistIds,
                         key = { i, x -> "$i-$x" },

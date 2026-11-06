@@ -71,7 +71,7 @@ class RadioNotificationManager(val symphony: Symphony) {
         }
         state = State.DESTROYED
         lastNotification = null
-        manager.cancel(RadioNotification.CHANNEL_ID, RadioNotification.NOTIFICATION_ID)
+        manager.cancel(RadioNotification.NOTIFICATION_ID)
     }
 
     private fun createService() {

@@ -1,6 +1,7 @@
 package dev.anujyadav.harmoniq.services
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
 import androidx.core.content.edit
@@ -13,10 +14,13 @@ import dev.anujyadav.harmoniq.services.groove.repositories.ArtistRepository
 import dev.anujyadav.harmoniq.services.groove.repositories.GenreRepository
 import dev.anujyadav.harmoniq.services.groove.repositories.PlaylistRepository
 import dev.anujyadav.harmoniq.services.groove.repositories.SongRepository
+import dev.anujyadav.harmoniq.services.radio.RadioNotificationAction
 import dev.anujyadav.harmoniq.services.radio.RadioQueue
 import dev.anujyadav.harmoniq.ui.components.PlaylistAction
 import dev.anujyadav.harmoniq.ui.components.ResponsiveGridColumns
 import dev.anujyadav.harmoniq.ui.components.SongAction
+import dev.anujyadav.harmoniq.ui.theme.AppIcon
+import dev.anujyadav.harmoniq.ui.theme.SplashAppearance
 import dev.anujyadav.harmoniq.ui.theme.ThemeMode
 import dev.anujyadav.harmoniq.ui.view.NowPlayingControlsLayout
 import dev.anujyadav.harmoniq.ui.view.NowPlayingLyricsLayout
@@ -285,6 +289,15 @@ class Settings(private val symphony: Symphony) {
         SongRepository.SortBy.TRACK_NUMBER,
     )
     val lastUsedAlbumSongsSortReverse = BooleanEntry("last_used_album_songs_sort_reverse", false)
+
+    // Custom is the newest download first
+    val lastUsedDownloadSongsSortBy = EnumEntry(
+        "last_used_download_songs_sort_by",
+        enumEntries<SongRepository.SortBy>(),
+        SongRepository.SortBy.CUSTOM,
+    )
+    val lastUsedDownloadSongsSortReverse =
+        BooleanEntry("last_used_download_songs_sort_reverse", false)
     val lastUsedTreePathSortBy = EnumEntry(
         "last_used_tree_path_sort_by",
         enumEntries<StringListUtils.SortBy>(),
@@ -398,6 +411,21 @@ class Settings(private val symphony: Symphony) {
 
     // pre-picked random color for the next launch, so its splash screen can match
     val nextPrimaryColor = NullableStringEntry("next_primary_color")
+    val splashAppearance = EnumEntry(
+        "splash_appearance",
+        enumEntries<SplashAppearance>(),
+        SplashAppearance.MatchAppTheme,
+    )
+
+    // same idea as nextPrimaryColor, for a random splash while the accent itself stays
+    val nextSplashColor = NullableStringEntry("next_splash_color")
+    val appIcon = EnumEntry("app_icon", enumEntries<AppIcon>(), AppIcon.Classic)
+    val alphabetIndexEnabled = BooleanEntry("alphabet_index_enabled", true)
+    val notificationActions = EnumSetEntry(
+        "notification_actions",
+        enumEntries<RadioNotificationAction>(),
+        RadioNotificationAction.defaultSelection,
+    )
     val fadePlaybackDuration = FloatEntry("fade_playback_duration", 1f)
     val forYouContents = EnumSetEntry(
         "for_you_contents",
@@ -425,8 +453,8 @@ class Settings(private val symphony: Symphony) {
 
     val nowPlayingAdditionalInfo = BooleanEntry("show_now_playing_additional_info", true)
     val nowPlayingSeekControls = BooleanEntry("enable_seek_controls", false)
-    val seekBackDuration = IntEntry("seek_back_duration", 15)
-    val seekForwardDuration = IntEntry("seek_back_duration", 30)
+    val seekBackDuration = IntEntry(SEEK_BACK_DURATION_KEY, 15)
+    val seekForwardDuration = IntEntry(SEEK_FORWARD_DURATION_KEY, 30)
     val miniPlayerTrackControls = BooleanEntry("mini_player_extended_controls", false)
     val miniPlayerSeekControls = BooleanEntry("mini_player_seek_controls", false)
     val fontFamily = NullableStringEntry("font_family")
@@ -488,7 +516,21 @@ class Settings(private val symphony: Symphony) {
     private fun getSharedPreferences() = symphony.applicationContext
         .getSharedPreferences("settings", Context.MODE_PRIVATE)
 
+    init {
+        // rewind and forward used to be saved under one key, so keep what was chosen back then
+        copyIfAbsent(getSharedPreferences(), SEEK_BACK_DURATION_KEY, SEEK_FORWARD_DURATION_KEY)
+    }
+
     companion object {
+        private const val SEEK_BACK_DURATION_KEY = "seek_back_duration"
+        private const val SEEK_FORWARD_DURATION_KEY = "seek_forward_duration"
+
+        internal fun copyIfAbsent(preferences: SharedPreferences, from: String, to: String) {
+            if (preferences.contains(from) && !preferences.contains(to)) {
+                preferences.edit { putInt(to, preferences.getInt(from, 0)) }
+            }
+        }
+
         private const val NONE_VALUE = ""
         private const val SONG_SWIPE_KIND = "song"
         private const val PLAYLIST_SWIPE_KIND = "playlist"

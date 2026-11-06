@@ -1,65 +1,102 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- neutral fallback, used until a theme-matched splash is registered (Android 13+) -->
+    <!-- neutral fallback, the only splash before Android 12, where no theme can be registered -->
     <style name="Theme.Harmoniq.SplashScreen" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
         <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="splashLogoInk">@color/splash_logo_ink</item>
+        <item name="splashLogoAccent">@color/splash_logo_accent</item>
         <item name="postSplashScreenTheme">@style/Theme.Harmoniq</item>
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
     </style>
 
-    <!-- one per PrimaryThemeColor, registered at runtime via SplashTheme -->
+    <!-- one per PrimaryThemeColor, registered at runtime via SplashTheme. The system stores
+         the registered name, so renaming one breaks the splash of existing installs -->
     <style name="Theme.Harmoniq.SplashScreen.Red">
         <item name="windowSplashScreenBackground">@color/theme_red</item>
+        <item name="splashLogoInk">@color/splash_logo_ink_red</item>
+        <item name="splashLogoAccent">@color/splash_logo_red</item>
     </style>
     <style name="Theme.Harmoniq.SplashScreen.Orange">
         <item name="windowSplashScreenBackground">@color/theme_orange</item>
+        <item name="splashLogoInk">@color/splash_logo_ink_orange</item>
+        <item name="splashLogoAccent">@color/splash_logo_orange</item>
     </style>
     <style name="Theme.Harmoniq.SplashScreen.Amber">
         <item name="windowSplashScreenBackground">@color/theme_amber</item>
+        <item name="splashLogoInk">@color/splash_logo_ink_amber</item>
+        <item name="splashLogoAccent">@color/splash_logo_amber</item>
     </style>
     <style name="Theme.Harmoniq.SplashScreen.Yellow">
         <item name="windowSplashScreenBackground">@color/theme_yellow</item>
+        <item name="splashLogoInk">@color/splash_logo_ink_yellow</item>
+        <item name="splashLogoAccent">@color/splash_logo_yellow</item>
     </style>
     <style name="Theme.Harmoniq.SplashScreen.Lime">
         <item name="windowSplashScreenBackground">@color/theme_lime</item>
+        <item name="splashLogoInk">@color/splash_logo_ink_lime</item>
+        <item name="splashLogoAccent">@color/splash_logo_lime</item>
     </style>
     <style name="Theme.Harmoniq.SplashScreen.Green">
         <item name="windowSplashScreenBackground">@color/theme_green</item>
+        <item name="splashLogoInk">@color/splash_logo_ink_green</item>
+        <item name="splashLogoAccent">@color/splash_logo_green</item>
     </style>
     <style name="Theme.Harmoniq.SplashScreen.Emerald">
         <item name="windowSplashScreenBackground">@color/theme_emerald</item>
+        <item name="splashLogoInk">@color/splash_logo_ink_emerald</item>
+        <item name="splashLogoAccent">@color/splash_logo_emerald</item>
     </style>
     <style name="Theme.Harmoniq.SplashScreen.Teal">
         <item name="windowSplashScreenBackground">@color/theme_teal</item>
+        <item name="splashLogoInk">@color/splash_logo_ink_teal</item>
+        <item name="splashLogoAccent">@color/splash_logo_teal</item>
     </style>
     <style name="Theme.Harmoniq.SplashScreen.Cyan">
         <item name="windowSplashScreenBackground">@color/theme_cyan</item>
+        <item name="splashLogoInk">@color/splash_logo_ink_cyan</item>
+        <item name="splashLogoAccent">@color/splash_logo_cyan</item>
     </style>
     <style name="Theme.Harmoniq.SplashScreen.Sky">
         <item name="windowSplashScreenBackground">@color/theme_sky</item>
+        <item name="splashLogoInk">@color/splash_logo_ink_sky</item>
+        <item name="splashLogoAccent">@color/splash_logo_sky</item>
     </style>
     <style name="Theme.Harmoniq.SplashScreen.Blue">
         <item name="windowSplashScreenBackground">@color/theme_blue</item>
+        <item name="splashLogoInk">@color/splash_logo_ink_blue</item>
+        <item name="splashLogoAccent">@color/splash_logo_blue</item>
     </style>
     <style name="Theme.Harmoniq.SplashScreen.Indigo">
         <item name="windowSplashScreenBackground">@color/theme_indigo</item>
+        <item name="splashLogoInk">@color/splash_logo_ink_indigo</item>
+        <item name="splashLogoAccent">@color/splash_logo_indigo</item>
     </style>
     <style name="Theme.Harmoniq.SplashScreen.Violet">
         <item name="windowSplashScreenBackground">@color/theme_violet</item>
+        <item name="splashLogoInk">@color/splash_logo_ink_violet</item>
+        <item name="splashLogoAccent">@color/splash_logo_violet</item>
     </style>
     <style name="Theme.Harmoniq.SplashScreen.Purple">
         <item name="windowSplashScreenBackground">@color/theme_purple</item>
+        <item name="splashLogoInk">@color/splash_logo_ink_purple</item>
+        <item name="splashLogoAccent">@color/splash_logo_purple</item>
     </style>
     <style name="Theme.Harmoniq.SplashScreen.Fuchsia">
         <item name="windowSplashScreenBackground">@color/theme_fuchsia</item>
+        <item name="splashLogoInk">@color/splash_logo_ink_fuchsia</item>
+        <item name="splashLogoAccent">@color/splash_logo_fuchsia</item>
     </style>
     <style name="Theme.Harmoniq.SplashScreen.Pink">
         <item name="windowSplashScreenBackground">@color/theme_pink</item>
+        <item name="splashLogoInk">@color/splash_logo_ink_pink</item>
+        <item name="splashLogoAccent">@color/splash_logo_pink</item>
     </style>
     <style name="Theme.Harmoniq.SplashScreen.Rose">
         <item name="windowSplashScreenBackground">@color/theme_rose</item>
+        <item name="splashLogoInk">@color/splash_logo_ink_rose</item>
+        <item name="splashLogoAccent">@color/splash_logo_rose</item>
     </style>
 </resources>

@@ -13,7 +13,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.ForegroundInfo
 import androidx.work.WorkManager
-import dev.anujyadav.harmoniq.MainActivity
+import dev.anujyadav.harmoniq.HarmoniqActivity
 import dev.anujyadav.harmoniq.R
 import dev.anujyadav.harmoniq.utils.AppStrings
 import java.util.UUID
@@ -78,7 +78,7 @@ class DownloadNotifications(private val context: Context) {
     private fun openAppIntent(): PendingIntent = PendingIntent.getActivity(
         context,
         0,
-        Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+        Intent(context, HarmoniqActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 

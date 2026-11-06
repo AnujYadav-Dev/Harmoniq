@@ -30,6 +30,7 @@ import dev.anujyadav.harmoniq.services.groove.Song
 import dev.anujyadav.harmoniq.ui.components.KeepScreenAwake
 import dev.anujyadav.harmoniq.ui.components.LyricsText
 import dev.anujyadav.harmoniq.ui.components.TimedContentTextStyle
+import dev.anujyadav.harmoniq.ui.components.VerticalSwipeDefaults
 import dev.anujyadav.harmoniq.ui.components.swipeable
 import dev.anujyadav.harmoniq.ui.helpers.FadeTransition
 import dev.anujyadav.harmoniq.ui.helpers.ScreenOrientation
@@ -128,6 +129,10 @@ private fun NowPlayingBodyCoverArtwork(context: ViewContext, song: Song) {
                     .clip(RoundedCornerShape(12.dp))
                     .swipeable(
                         minimumDragAmount = 100f,
+                        minimumVerticalDragDistance = VerticalSwipeDefaults.MinimumDragDistance,
+                        // this swipe consumes every drag, so the screen's own never sees it
+                        onSwipeUp = { context.openQueueFromNowPlaying() },
+                        onSwipeDown = { context.closeNowPlaying() },
                         onSwipeLeft = {
                             if (context.symphony.radio.canJumpToNext()) {
                                 context.symphony.radio.jumpToNext()

@@ -1,6 +1,8 @@
 ﻿package dev.anujyadav.harmoniq.ui.view.home
 
 
+import dev.anujyadav.harmoniq.utils.AlphabetIndex
+import dev.anujyadav.harmoniq.ui.components.rememberAlphabetIndex
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.togetherWith
@@ -171,6 +173,16 @@ private fun FoldersGrid(
             ResponsiveGridColumns(horizontalGridColumns, verticalGridColumns)
         }
     }
+    val alphabetIndex = rememberAlphabetIndex(
+        context,
+        items = sortedFolderNames,
+        sortKey = sortBy,
+        minItems = AlphabetIndex.MIN_COLLECTION_ITEMS,
+        textOf = when (sortBy) {
+            StringListUtils.SortBy.NAME -> { name: String -> name }
+            else -> null
+        },
+    )
     var showModifyLayoutSheet by remember { mutableStateOf(false) }
 
     MediaSortBarScaffold(
@@ -210,7 +222,7 @@ private fun FoldersGrid(
                     content = { Text(AppStrings.DamnThisIsSoEmpty) }
                 )
 
-                else -> ResponsiveGrid(gridColumns, layout) {
+                else -> ResponsiveGrid(gridColumns, layout, alphabetIndex = alphabetIndex) {
                     itemsIndexed(
                         sortedFolderNames,
                         key = { i, x -> "$i-$x" },

@@ -25,7 +25,10 @@ fun rememberDownloadsFolderPicker(context: ViewContext): () -> Unit {
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         uri?.let { context.symphony.globalSearch.onLibraryFolderPicked(it) }
     }
-    return { launcher.launch(LibraryLink.downloadsInitialUri) }
+    return {
+        context.symphony.globalSearch.prepareDownloadsFolder()
+        launcher.launch(LibraryLink.downloadsInitialUri)
+    }
 }
 
 /** The one-time "add downloads to your library?" question after the first saved song (plan §11). */

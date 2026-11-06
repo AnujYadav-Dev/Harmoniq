@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import dev.anujyadav.harmoniq.services.globalsearch.SearchPage
 import dev.anujyadav.harmoniq.services.globalsearch.api.PlaylistResultDto
 import dev.anujyadav.harmoniq.services.globalsearch.api.SearchType
+import dev.anujyadav.harmoniq.ui.components.ActionBanner
 import dev.anujyadav.harmoniq.ui.components.SeeAllButton
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 import androidx.compose.foundation.lazy.items
@@ -34,8 +35,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
+import dev.anujyadav.harmoniq.services.globalsearch.GlobalSearchAvailability
+import dev.anujyadav.harmoniq.services.globalsearch.ServerConfig
 import dev.anujyadav.harmoniq.services.globalsearch.connection.ConnectionState
+import dev.anujyadav.harmoniq.ui.view.settings.GlobalSearchSettingsViewRoute
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.material.icons.filled.Info
@@ -66,6 +72,8 @@ fun GlobalSearchResults(
 ) {
     val connectionState by context.symphony.globalSearch.connectionState.collectAsState()
     val connectionMessage by context.symphony.globalSearch.connectionMessage.collectAsState()
+    val availability by context.symphony.globalSearch.availability.collectAsState()
+    KeepCheckingServer(context, availability)
     Column(modifier = Modifier.fillMaxSize()) {
         // a paused server shows its notice as the page itself, below
         if (connectionState !is ConnectionState.Disabled) connectionMessage?.let { NoticeBanner(it) }
@@ -73,6 +81,16 @@ fun GlobalSearchResults(
         Box(modifier = Modifier.fillMaxSize()) {
             if (connectionState is ConnectionState.Disabled) {
                 CenteredMessage(Icons.Filled.CloudOff, connectionMessage ?: AppStrings.GlobalSearchPaused)
+                return@Box
+            }
+            // results already on screen stay useful, and a running search gets to finish
+            val showsContent = state is GlobalSearch.SearchState.Results || state is GlobalSearch.SearchState.Loading
+            if (availability == GlobalSearchAvailability.NotConfigured || (availability.canRecover && !showsContent)) {
+                CenteredMessage(
+                    Icons.Filled.CloudOff,
+                    GlobalSearchMessages.forAvailability(availability),
+                    action = { ServerProblemActions(context) },
+                )
                 return@Box
             }
             when (state) {
@@ -178,6 +196,49 @@ fun SearchPage.Section.label() = when (this) {
     SearchPage.Section.Songs -> AppStrings.Songs
     SearchPage.Section.Videos -> AppStrings.Videos
     SearchPage.Section.Playlists -> AppStrings.Playlists
+}
+
+/** While the server can't be used but might come back, so the screen recovers by itself. */
+@Composable
+private fun KeepCheckingServer(context: ViewContext, availability: GlobalSearchAvailability) {
+    LaunchedEffect(availability) {
+        while (availability.canRecover) {
+            delay(ServerConfig.serverRecheckInterval)
+            context.symphony.globalSearch.checkConnection()
+        }
+    }
+}
+
+@Composable
+private fun ServerProblemActions(context: ViewContext) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        TextButton(onClick = { context.symphony.globalSearch.retryConnection() }) {
+            Text(AppStrings.Retry)
+        }
+        TextButton(onClick = { context.navController.navigate(GlobalSearchSettingsViewRoute) }) {
+            Text(AppStrings.ServerSettings)
+        }
+    }
+}
+
+/** For screens that keep working without the server, to explain what's limited meanwhile. */
+@Composable
+fun GlobalSearchAvailabilityBanner(context: ViewContext) {
+    val availability by context.symphony.globalSearch.availability.collectAsState()
+    KeepCheckingServer(context, availability)
+    if (availability.isAvailable) return
+    ActionBanner(
+        icon = Icons.Filled.CloudOff,
+        title = GlobalSearchMessages.titleForAvailability(availability),
+        message = GlobalSearchMessages.bannerMessageForAvailability(availability),
+        actionLabel = AppStrings.ServerSettings,
+        onAction = { context.navController.navigate(GlobalSearchSettingsViewRoute) },
+        secondaryActions = {
+            TextButton(onClick = { context.symphony.globalSearch.retryConnection() }) {
+                Text(AppStrings.Retry)
+            }
+        },
+    )
 }
 
 // a notice from the server config file, e.g. "Server maintenance tonight"

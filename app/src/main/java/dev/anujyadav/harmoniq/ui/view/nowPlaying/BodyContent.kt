@@ -52,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.anujyadav.harmoniq.ui.components.SongDropdownMenu
+import dev.anujyadav.harmoniq.ui.components.blockVerticalSwipe
 import dev.anujyadav.harmoniq.ui.helpers.FadeTransition
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 import dev.anujyadav.harmoniq.ui.view.ArtistViewRoute
@@ -294,7 +295,9 @@ fun NowPlayingSeekBar(context: ViewContext) {
     val playbackPosition by context.symphony.radio.observatory.playbackPosition.collectAsState()
 
     Row(
-        modifier = Modifier.padding(defaultHorizontalPadding, 0.dp),
+        modifier = Modifier
+            .padding(defaultHorizontalPadding, 0.dp)
+            .blockVerticalSwipe(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

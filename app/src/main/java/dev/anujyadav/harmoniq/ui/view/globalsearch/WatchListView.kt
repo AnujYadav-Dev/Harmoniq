@@ -15,13 +15,17 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.anujyadav.harmoniq.services.globalsearch.watchlist.WatchListItem
 import dev.anujyadav.harmoniq.services.globalsearch.watchlist.WatchListSortBy
+import dev.anujyadav.harmoniq.ui.components.AlphabetIndexedContent
 import dev.anujyadav.harmoniq.ui.components.IconTextBody
+import dev.anujyadav.harmoniq.ui.components.rememberAlphabetIndex
 import dev.anujyadav.harmoniq.ui.components.LocalUndoHost
 import dev.anujyadav.harmoniq.ui.components.MediaSortBar
 import dev.anujyadav.harmoniq.ui.components.OnlineSwipeScope
@@ -48,9 +52,15 @@ fun WatchListView(context: ViewContext) {
     val undoHost = rememberUndoHost()
     val sheetNavigator = rememberGlobalSheetNavigator()
 
+    LaunchedEffect(Unit) {
+        context.symphony.globalSearch.ensureMeta()
+    }
+
     CompositionLocalProvider(LocalUndoHost provides undoHost) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
+                // saved songs are local, but their previews and downloads need the server
+                GlobalSearchAvailabilityBanner(context)
                 MediaSortBar(
                     context,
                     reverse = reverse,
@@ -68,11 +78,31 @@ fun WatchListView(context: ViewContext) {
 
                     else -> ProvideSwipeScope(onlineScope = OnlineSwipeScope.WatchList) {
                         val listState = rememberLazyListState()
+                        val alphabetIndex = rememberAlphabetIndex(
+                            context,
+                            items = sorted,
+                            sortKey = sortBy,
+                            textOf = when (sortBy) {
+                                WatchListSortBy.Title -> { item: WatchListItem -> item.title }
+                                WatchListSortBy.Artist -> { item: WatchListItem -> item.artists.firstOrNull() }
+                                WatchListSortBy.DateAdded -> null
+                            },
+                        )
+                        AlphabetIndexedContent(
+                            sections = alphabetIndex,
+                            onJumpToItem = { listState.scrollToItem(it) },
+                        ) {
                         LazyColumn(
                             state = listState,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .drawScrollBar(listState),
+                                .then(
+                                    when {
+                                        // the bar already takes that edge
+                                        alphabetIndex.isEmpty() -> Modifier.drawScrollBar(listState)
+                                        else -> Modifier
+                                    }
+                                ),
                         ) {
                             items(sorted, key = { it.videoId }) { item ->
                                 val result = remember(item) { item.toSearchResult() }
@@ -91,6 +121,7 @@ fun WatchListView(context: ViewContext) {
                                 )
                             }
                             item { Spacer(modifier = Modifier.height(12.dp)) }
+                        }
                         }
                     }
                 }

@@ -1,5 +1,6 @@
 ﻿package dev.anujyadav.harmoniq.ui.components
 
+import dev.anujyadav.harmoniq.utils.AlphabetIndex
 import androidx.compose.foundation.layout.Arrangement
 
 
@@ -161,6 +162,16 @@ fun GenreGrid(
             ResponsiveGridColumns(horizontalGridColumns, verticalGridColumns)
         }
     }
+    val alphabetIndex = rememberAlphabetIndex(
+        context,
+        items = sortedGenreNames,
+        sortKey = sortBy,
+        minItems = AlphabetIndex.MIN_COLLECTION_ITEMS,
+        textOf = when (sortBy) {
+            GenreRepository.SortBy.GENRE -> { name: String -> name }
+            else -> null
+        },
+    )
     var showModifyLayoutSheet by remember { mutableStateOf(false) }
 
     MediaSortBarScaffold(
@@ -206,7 +217,7 @@ fun GenreGrid(
                     content = { Text(AppStrings.DamnThisIsSoEmpty) }
                 )
 
-                else -> ResponsiveGrid(gridColumns, layout) { gridData ->
+                else -> ResponsiveGrid(gridColumns, layout, alphabetIndex = alphabetIndex) { gridData ->
                     itemsIndexed(
                         sortedGenreNames,
                         key = { i, x -> "$i-$x" },

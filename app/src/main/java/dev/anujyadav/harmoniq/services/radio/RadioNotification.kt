@@ -4,7 +4,7 @@
 import android.app.PendingIntent
 import android.content.Intent
 import androidx.core.app.NotificationCompat
-import dev.anujyadav.harmoniq.MainActivity
+import dev.anujyadav.harmoniq.HarmoniqActivity
 import dev.anujyadav.harmoniq.R
 import dev.anujyadav.harmoniq.Symphony
 import dev.anujyadav.harmoniq.utils.AppStrings
@@ -32,7 +32,7 @@ class RadioNotification(private val symphony: Symphony) {
                 PendingIntent.getActivity(
                     symphony.applicationContext,
                     0,
-                    Intent(symphony.applicationContext, MainActivity::class.java)
+                    Intent(symphony.applicationContext, HarmoniqActivity::class.java)
                         .addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT),
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
                 )
@@ -52,13 +52,13 @@ class RadioNotification(private val symphony: Symphony) {
                 when {
                     req.isPlaying -> createAction(
                         R.drawable.material_icon_pause,
-                        AppStrings.Play,
+                        AppStrings.Pause,
                         RadioSession.ACTION_PLAY_PAUSE
                     )
 
                     else -> createAction(
                         R.drawable.material_icon_play,
-                        AppStrings.Pause,
+                        AppStrings.Play,
                         RadioSession.ACTION_PLAY_PAUSE
                     )
                 }
@@ -70,13 +70,10 @@ class RadioNotification(private val symphony: Symphony) {
                     RadioSession.ACTION_NEXT
                 )
             )
-            addAction(
-                createAction(
-                    R.drawable.material_icon_stop,
-                    AppStrings.Stop,
-                    RadioSession.ACTION_STOP
-                )
-            )
+            selectedActions(symphony).forEach { action ->
+                val presentation = action.present(symphony, req.song.id)
+                addAction(createAction(presentation.icon, presentation.title, action.actionId))
+            }
             setStyle(
                 androidx.media.app.NotificationCompat.MediaStyle()
                     .setMediaSession(symphony.radio.session.mediaSession.sessionToken)
@@ -100,7 +97,7 @@ class RadioNotification(private val symphony: Symphony) {
         return PendingIntent.getBroadcast(
             symphony.applicationContext,
             0,
-            Intent(action),
+            Intent(action).setPackage(symphony.applicationContext.packageName),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
     }
@@ -108,5 +105,8 @@ class RadioNotification(private val symphony: Symphony) {
     companion object {
         val CHANNEL_ID = "${R.string.app_name}_media_notification"
         const val NOTIFICATION_ID = 69421
+
+        fun selectedActions(symphony: Symphony) = symphony.settings.notificationActions.value
+            .take(RadioNotificationAction.MAX_SELECTED)
     }
 }

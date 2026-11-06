@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Headset
 import androidx.compose.material.icons.filled.HeadsetOff
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,8 +29,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import dev.anujyadav.harmoniq.services.radio.RadioNotificationAction
 import dev.anujyadav.harmoniq.ui.components.IconButtonPlaceholder
 import dev.anujyadav.harmoniq.ui.components.TopAppBarMinimalTitle
+import dev.anujyadav.harmoniq.ui.components.settings.SettingsMultiOptionTile
 import dev.anujyadav.harmoniq.ui.components.settings.SettingsSideHeading
 import dev.anujyadav.harmoniq.ui.components.settings.SettingsSwipeActionsLinkTile
 import dev.anujyadav.harmoniq.ui.components.settings.SettingsSliderTile
@@ -55,6 +58,7 @@ fun PlayerSettingsView(context: ViewContext) {
     val seekBackDuration by context.symphony.settings.seekBackDuration.flow.collectAsState()
     val seekForwardDuration by context.symphony.settings.seekForwardDuration.flow.collectAsState()
     val gaplessPlayback by context.symphony.settings.gaplessPlayback.flow.collectAsState()
+    val notificationActions by context.symphony.settings.notificationActions.flow.collectAsState()
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -245,6 +249,25 @@ fun PlayerSettingsView(context: ViewContext) {
                         value = gaplessPlayback,
                         onChange = { value ->
                             context.symphony.settings.gaplessPlayback.setValue(value)
+                        },
+                    )
+                    HorizontalDivider()
+                    SettingsMultiOptionTile(
+                        context,
+                        icon = {
+                            Icon(Icons.Filled.Notifications, null)
+                        },
+                        title = {
+                            Text(AppStrings.NotificationButtons)
+                        },
+                        note = {
+                            Text(AppStrings.NotificationButtonsNote)
+                        },
+                        value = notificationActions,
+                        values = RadioNotificationAction.entries.associateWith { it.label },
+                        satisfies = { it.size <= RadioNotificationAction.MAX_SELECTED },
+                        onChange = { value ->
+                            context.symphony.settings.notificationActions.setValue(value)
                         },
                     )
                     SettingsSideHeading(AppStrings.SwipeActions)

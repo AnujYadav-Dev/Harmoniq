@@ -18,7 +18,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import dev.anujyadav.harmoniq.MainActivity
+import dev.anujyadav.harmoniq.HarmoniqActivity
 import dev.anujyadav.harmoniq.Symphony
 import dev.anujyadav.harmoniq.services.radio.Radio
 import dev.anujyadav.harmoniq.ui.components.SongUnavailableDialog
@@ -50,7 +50,7 @@ import dev.anujyadav.harmoniq.ui.components.SongSwipeScope
 import dev.anujyadav.harmoniq.ui.view.navigation.LibraryPill
 
 @Composable
-fun BaseView(symphony: Symphony, activity: MainActivity) {
+fun BaseView(symphony: Symphony, activity: HarmoniqActivity) {
     val navController = rememberNavController()
     val context = remember {
         ViewContext(

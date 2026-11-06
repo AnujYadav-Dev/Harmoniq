@@ -46,6 +46,7 @@ import dev.anujyadav.harmoniq.ui.components.settings.SettingsSliderDialog
 
 
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
+import dev.anujyadav.harmoniq.utils.AlphabetIndex
 
 import dev.anujyadav.harmoniq.utils.AppStrings
 
@@ -75,6 +76,7 @@ data class ResponsiveGridColumns(val horizontal: Int, val vertical: Int) {
 fun ResponsiveGrid(
     columns: ResponsiveGridColumns,
     layout: MediaLayout = MediaLayout.Grid,
+    alphabetIndex: List<AlphabetIndex.Section> = emptyList(),
     content: LazyGridScope.(ResponsiveGridData) -> Unit,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -89,12 +91,21 @@ fun ResponsiveGrid(
         val gridState = rememberLazyGridState()
         val responsiveGridData = ResponsiveGridData(columnsCount = effectiveColumn)
 
-        LazyVerticalGrid(
-            state = gridState,
-            columns = GridCells.Fixed(effectiveColumn),
-            modifier = Modifier.drawScrollBar(gridState, effectiveColumn)
+        AlphabetIndexedContent(
+            sections = alphabetIndex,
+            onJumpToItem = { gridState.scrollToItem(it) },
         ) {
-            content(responsiveGridData)
+            LazyVerticalGrid(
+                state = gridState,
+                columns = GridCells.Fixed(effectiveColumn),
+                modifier = when {
+                    // the bar already takes that edge
+                    alphabetIndex.isEmpty() -> Modifier.drawScrollBar(gridState, effectiveColumn)
+                    else -> Modifier
+                },
+            ) {
+                content(responsiveGridData)
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
@@ -33,10 +34,15 @@ enum class LibraryPill(
         countProvider = { it.song.all.value.size },
     ),
 
-    // Global Search: hidden while it's off or unavailable
+    // Global Search: only hidden while the user has turned it off in Settings
     WatchList(
         icon = Icons.Filled.WatchLater,
         label = AppStrings.WatchList,
+        countProvider = null,
+    ),
+    Downloads(
+        icon = Icons.Filled.Download,
+        label = AppStrings.Downloads,
         countProvider = null,
     ),
     Albums(
@@ -85,10 +91,10 @@ enum class LibraryPill(
         get() = when (this) {
             Albums, Artists, AlbumArtists, Genres -> SongSwipeScope.Collections
             Browser, Folders, Tree -> SongSwipeScope.Folders
-            ForYou, Songs, Playlists, WatchList -> SongSwipeScope.Songs
+            ForYou, Songs, Playlists, WatchList, Downloads -> SongSwipeScope.Songs
         }
 
-    val isGlobalSearch get() = this == WatchList
+    val isGlobalSearch get() = this == WatchList || this == Downloads
 
     companion object {
         // order used until the user reorders the tabs

@@ -1,5 +1,6 @@
 ﻿package dev.anujyadav.harmoniq.ui.components
 
+import dev.anujyadav.harmoniq.utils.AlphabetIndex
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 
 
@@ -72,6 +73,16 @@ fun AlbumArtistGrid(
             ResponsiveGridColumns(horizontalGridColumns, verticalGridColumns)
         }
     }
+    val alphabetIndex = rememberAlphabetIndex(
+        context,
+        items = sortedAlbumArtistNames,
+        sortKey = sortBy,
+        minItems = AlphabetIndex.MIN_COLLECTION_ITEMS,
+        textOf = when (sortBy) {
+            AlbumArtistRepository.SortBy.ARTIST_NAME -> { name: String -> name }
+            else -> null
+        },
+    )
     var showModifyLayoutSheet by remember { mutableStateOf(false) }
 
     MediaSortBarScaffold(
@@ -115,7 +126,7 @@ fun AlbumArtistGrid(
                     content = { Text(AppStrings.DamnThisIsSoEmpty) }
                 )
 
-                else -> ResponsiveGrid(gridColumns, layout) {
+                else -> ResponsiveGrid(gridColumns, layout, alphabetIndex = alphabetIndex) {
                     itemsIndexed(
                         sortedAlbumArtistNames,
                         key = { i, x -> "$i-$x" },

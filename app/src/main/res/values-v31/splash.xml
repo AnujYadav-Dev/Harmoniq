@@ -4,5 +4,7 @@
     <!-- follows the system wallpaper accent, used when Material You is enabled -->
     <style name="Theme.Harmoniq.SplashScreen.MaterialYou">
         <item name="windowSplashScreenBackground">@android:color/system_accent1_500</item>
+        <item name="splashLogoInk">@android:color/system_accent1_900</item>
+        <item name="splashLogoAccent">@android:color/system_accent1_200</item>
     </style>
 </resources>

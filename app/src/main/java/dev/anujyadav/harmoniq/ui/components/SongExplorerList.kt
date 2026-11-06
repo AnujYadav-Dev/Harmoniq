@@ -195,10 +195,31 @@ fun SongExplorerList(
 
                 else -> {
                     val lazyListState = rememberLazyListState()
+                    // files only: folders come first in their own order, and jumping through both
+                    // would list every letter twice
+                    val fileIds = remember(sortedEntities) { sortedEntities.files.keys.toList() }
+                    val alphabetIndex = rememberAlphabetIndex(
+                        context,
+                        items = fileIds,
+                        sortKey = sortBy,
+                        textOf = sortBy.alphabetText()?.let { textOf ->
+                            { songId: String -> context.symphony.groove.song.get(songId)?.let(textOf) }
+                        },
+                    )
 
+                    AlphabetIndexedContent(
+                        sections = alphabetIndex,
+                        onJumpToItem = {
+                            lazyListState.scrollToItem(sortedEntities.folders.size + it)
+                        },
+                    ) {
                     LazyColumn(
                         state = lazyListState,
-                        modifier = Modifier.drawScrollBar(lazyListState),
+                        modifier = when {
+                            // the bar already takes that edge
+                            alphabetIndex.isEmpty() -> Modifier.drawScrollBar(lazyListState)
+                            else -> Modifier
+                        },
                     ) {
                         items(
                             sortedEntities.folders,
@@ -272,6 +293,7 @@ fun SongExplorerList(
                                 }
                             }
                         }
+                    }
                     }
                 }
             }

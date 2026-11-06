@@ -21,4 +21,52 @@
 
     <!-- ThemeColors.Neutral50 / Neutral900 -->
     <color name="splash_background">#FAFAFA</color>
+    <color name="splash_logo_ink">#000000</color>
+    <color name="splash_logo_accent">#737373</color>
+
+    <!-- splash logo per theme, all in the background's own color family: a dark ink, and a
+         shade lighter or darker than the background (whichever it has room for).
+         Checked by SplashPaletteTest -->
+    <color name="splash_logo_ink_red">#2F0404</color>
+    <color name="splash_logo_red">#F7A2A2</color>
+    <color name="splash_logo_ink_orange">#301503</color>
+    <color name="splash_logo_orange">#FDCBA9</color>
+    <color name="splash_logo_ink_amber">#301F03</color>
+    <color name="splash_logo_amber">#FDF0D9</color>
+    <color name="splash_logo_ink_yellow">#302503</color>
+    <color name="splash_logo_yellow">#A78006</color>
+    <color name="splash_logo_ink_lime">#1E2E05</color>
+    <color name="splash_logo_lime">#F7FDEE</color>
+    <color name="splash_logo_ink_green">#082B15</color>
+    <color name="splash_logo_green">#C8F5D9</color>
+    <color name="splash_logo_ink_emerald">#042F21</color>
+    <color name="splash_logo_emerald">#80F4CE</color>
+    <color name="splash_logo_ink_teal">#052E29</color>
+    <color name="splash_logo_teal">#8CF3E7</color>
+    <color name="splash_logo_ink_cyan">#032A30</color>
+    <color name="splash_logo_cyan">#A4F0FC</color>
+    <color name="splash_logo_ink_sky">#032230</color>
+    <color name="splash_logo_sky">#A3DFF9</color>
+    <color name="splash_logo_ink_blue">#031430</color>
+    <color name="splash_logo_blue">#95BCFA</color>
+    <color name="splash_logo_ink_indigo">#04052F</color>
+    <color name="splash_logo_indigo">#A0A2F6</color>
+    <color name="splash_logo_ink_violet">#110330</color>
+    <color name="splash_logo_violet">#BBA0FA</color>
+    <color name="splash_logo_ink_purple">#1A0330</color>
+    <color name="splash_logo_purple">#D0A3FB</color>
+    <color name="splash_logo_ink_fuchsia">#29042F</color>
+    <color name="splash_logo_fuchsia">#EDA9F8</color>
+    <color name="splash_logo_ink_pink">#2E0519</color>
+    <color name="splash_logo_pink">#F6A7CE</color>
+    <color name="splash_logo_ink_rose">#30030B</color>
+    <color name="splash_logo_rose">#FAA2B1</color>
+
+    <!-- the neutral app icons: unlike the splash they don't follow the system's dark mode -->
+    <color name="app_icon_light_background">#FAFAFA</color>
+    <color name="app_icon_light_ink">#000000</color>
+    <color name="app_icon_light_accent">#737373</color>
+    <color name="app_icon_dark_background">#171717</color>
+    <color name="app_icon_dark_ink">#FFFFFF</color>
+    <color name="app_icon_dark_accent">#7A7A7A</color>
 </resources>

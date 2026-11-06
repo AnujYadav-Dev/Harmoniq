@@ -92,7 +92,7 @@ Android Studio equivalents: **Build → Clean Project**, **Build → Rebuild Pro
 ## Typical workflows
 
 ```bash
-./gradlew :app:installDebug && adb shell am start -n dev.anujyadav.harmoniq.debug/dev.anujyadav.harmoniq.MainActivity
+./gradlew :app:installDebug && adb shell am start -n dev.anujyadav.harmoniq.debug/dev.anujyadav.harmoniq.HarmoniqActivity
 ```
 The everyday loop: install the latest code and launch it.
 

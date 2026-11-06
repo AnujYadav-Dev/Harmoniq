@@ -39,7 +39,11 @@ Harmoniq plays the music on your phone. Optionally, its **Global Search** finds 
 ### Your library
 
 - **Modern 3-Tab Architecture**: Quick, streamlined bottom navigation splitting the app into **Home**, **Search**, and **Library** tabs.
-- **Premium Library UI**: Reorderable library tabs (For you, Songs, Watch List, Albums, Artists, Genres, Playlists, Folders…), each with Grid or List view.
+- **Premium Library UI**: Reorderable library tabs (For you, Songs, Watch List, Downloads, Albums, Artists, Genres, Playlists, Folders…), each with Grid or List view.
+- **Alphabet Sidebar**: Jump by letter in long lists sorted alphabetically. It follows reverse sort and filters, and can be turned off in Settings.
+- **Now Playing Gestures**: Swipe down to close and up to open the Queue, alongside swiping the artwork left or right to change songs.
+- **Customizable Notification Buttons**: Add up to two of Favorite, Shuffle, Repeat, Seek back, Seek forward and Stop next to the permanent controls.
+- **App Icons & Loading Screen**: Choose from 20 app icons, and a loading screen that matches the app's theme, uses a random color, or stays neutral black and white.
 - **Home**: Customisable playlist shortcuts and a Suggested songs section (For you, Rediscover, genre picks).
 - **Playlists**: Redesigned playlist screen with in-playlist search and custom covers (Favorites included).
 - **Swipe Actions**: Swipe left or right on song, playlist and online rows. Every screen has its own configurable actions, with Undo for removals.
@@ -56,7 +60,8 @@ Harmoniq plays the music on your phone. Optionally, its **Global Search** finds 
 - **One-tap download**: The server returns a high-quality file (Opus, M4A or MP3) with title, artists, album, track and disc number, release date, genres, cover art and synced lyrics embedded. It's saved to `Download/Harmoniq` and appears in your library automatically.
 - **Actions everywhere**: The ⋮ menu and swipe gestures offer Download, Add to Watch List, Share, Open in YouTube and Details. A badge shows downloaded, in-progress and failed items.
 - **Watch List**: A Library tab for songs and videos you want to keep without downloading them yet. It's stored on the device and works offline.
-- **You stay in control**: Turn Global Search off in **Settings → Global search**. Without a configured server the app stays 100% offline.
+- **Downloads**: A Library tab listing only the songs downloaded through Global Search, kept apart from other files on your device.
+- **You stay in control**: Turn Global Search off in **Settings → Global search**. Without a configured server the app stays 100% offline, and Global Search and the Watch List stay visible with a message explaining why the server can't be used.
 
 > Global Search is meant for personal use with your own server. Only download content you have the right to keep.
 

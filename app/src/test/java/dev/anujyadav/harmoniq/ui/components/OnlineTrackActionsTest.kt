@@ -91,8 +91,11 @@ class OnlineTrackActionsTest {
             LibraryPill.Folders, LibraryPill.Tree,
         )
         val order = LibraryPill.withNewPills(saved)
-        // the user's order is kept and the Watch List sits right after Songs
-        assertEquals(listOf(LibraryPill.Songs, LibraryPill.WatchList, LibraryPill.ForYou), order.take(3))
+        // the user's order is kept, with the Watch List and Downloads right after Songs
+        assertEquals(
+            listOf(LibraryPill.Songs, LibraryPill.WatchList, LibraryPill.Downloads, LibraryPill.ForYou),
+            order.take(4),
+        )
         assertEquals(LibraryPill.entries.size, order.size)
         assertEquals(LibraryPill.defaultOrder, LibraryPill.withNewPills(LibraryPill.defaultOrder))
         // pills missing their predecessor chain land in default order, duplicates collapse

@@ -33,6 +33,16 @@ interface DownloadSaver {
 
     fun exists(uri: String): Boolean
 
+    /** Creates the folder ahead of the first download, false when that's not possible. */
+    fun ensureFolder(): Boolean = runCatching {
+        @Suppress("DEPRECATION")
+        val folder = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+            ServerConfig.DOWNLOAD_FOLDER_NAME,
+        )
+        folder.isDirectory || folder.mkdirs()
+    }.getOrDefault(false)
+
     companion object {
         const val MAX_NAME_ATTEMPTS = 50
 
@@ -146,7 +156,7 @@ class LegacyDownloadSaver(private val context: Context) : DownloadSaver {
 
     override suspend fun save(source: File, fileName: String, mimeType: String, sha256: String) =
         withContext(Dispatchers.IO) {
-            ensureFolder()
+            requireFolder()
             for (attempt in 1..DownloadSaver.MAX_NAME_ATTEMPTS) {
                 val target = File(folder, FileNames.withCollisionSuffix(fileName, attempt))
                 if (!target.exists()) {
@@ -161,7 +171,7 @@ class LegacyDownloadSaver(private val context: Context) : DownloadSaver {
         }
 
     override suspend fun saveCompanion(bytes: ByteArray, fileName: String) = withContext(Dispatchers.IO) {
-        ensureFolder()
+        requireFolder()
         for (attempt in 1..DownloadSaver.MAX_NAME_ATTEMPTS) {
             val target = File(folder, FileNames.withCollisionSuffix(fileName, attempt))
             if (!target.exists()) {
@@ -175,7 +185,7 @@ class LegacyDownloadSaver(private val context: Context) : DownloadSaver {
 
     override fun exists(uri: String) = Uri.parse(uri).path?.let { File(it).exists() } == true
 
-    private fun ensureFolder() {
+    private fun requireFolder() {
         if (!folder.isDirectory && !folder.mkdirs()) throw IOException("cannot create $folder")
     }
 

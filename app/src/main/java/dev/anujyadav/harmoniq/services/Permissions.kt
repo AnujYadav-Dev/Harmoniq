@@ -4,7 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.result.contract.ActivityResultContracts
-import dev.anujyadav.harmoniq.MainActivity
+import dev.anujyadav.harmoniq.HarmoniqActivity
 import dev.anujyadav.harmoniq.Symphony
 
 class Permissions(private val symphony: Symphony) {
@@ -16,7 +16,7 @@ class Permissions(private val symphony: Symphony) {
         fun hasAll() = denied.isEmpty()
     }
 
-    fun handle(activity: MainActivity) {
+    fun handle(activity: HarmoniqActivity) {
         val state = getState(activity)
         if (state.hasAll()) {
             return
@@ -33,7 +33,7 @@ class Permissions(private val symphony: Symphony) {
         return required
     }
 
-    private fun getState(activity: MainActivity): State {
+    private fun getState(activity: HarmoniqActivity): State {
         val required = getRequiredPermissions()
         val granted = mutableListOf<String>()
         val denied = mutableListOf<String>()

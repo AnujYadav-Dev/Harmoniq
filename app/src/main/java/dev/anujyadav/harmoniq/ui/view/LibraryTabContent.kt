@@ -73,6 +73,7 @@ import dev.anujyadav.harmoniq.ui.components.ReorderDragHandle
 import dev.anujyadav.harmoniq.ui.components.SeeAllButton
 import dev.anujyadav.harmoniq.ui.components.ReorderableItemDefaults
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
+import dev.anujyadav.harmoniq.ui.view.globalsearch.DownloadsView
 import dev.anujyadav.harmoniq.ui.view.home.AlbumArtistsView
 import dev.anujyadav.harmoniq.ui.view.home.AlbumsView
 import dev.anujyadav.harmoniq.ui.view.home.ArtistsView
@@ -118,7 +119,7 @@ object FavoritesViewRoute
 fun LibraryTabContent(context: ViewContext) {
     val savedPillOrder by context.symphony.settings.libraryPillOrder.flow.collectAsState()
     val isGlobalSearchEnabled by context.symphony.globalSearch.isEnabled.collectAsState()
-    // Global Search pills (Watch List) only while it's on; their place in the order is kept
+    // Global Search pills only while it's on in Settings; their place in the order is kept
     val libraryPillOrder = remember(savedPillOrder, isGlobalSearchEnabled) {
         savedPillOrder.filter { isGlobalSearchEnabled || !it.isGlobalSearch }
     }
@@ -304,6 +305,7 @@ private fun LibraryPillContent(
                 LibraryPill.ForYou -> LibraryForYouContent(context, onPillChange)
                 LibraryPill.Songs -> SongsView(context)
                 LibraryPill.WatchList -> WatchListView(context)
+                LibraryPill.Downloads -> DownloadsView(context)
                 LibraryPill.Albums -> AlbumsView(context)
                 LibraryPill.Artists -> ArtistsView(context)
                 LibraryPill.AlbumArtists -> AlbumArtistsView(context)

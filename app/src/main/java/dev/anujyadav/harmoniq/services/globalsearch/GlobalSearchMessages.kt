@@ -7,7 +7,30 @@ import dev.anujyadav.harmoniq.utils.AppStrings
 
 // maps server error codes (docs/api.md §Errors) to what the user reads
 object GlobalSearchMessages {
+    fun forAvailability(availability: GlobalSearchAvailability): String = when (availability) {
+        GlobalSearchAvailability.Available -> AppStrings.SearchSongsToDownload
+        GlobalSearchAvailability.NotConfigured -> AppStrings.GlobalSearchNotConfigured
+        is GlobalSearchAvailability.Paused -> availability.message ?: AppStrings.GlobalSearchPaused
+        GlobalSearchAvailability.Unreachable -> AppStrings.GlobalSearchUnreachable
+        GlobalSearchAvailability.Rejected -> AppStrings.GlobalSearchAccessRejected
+    }
+
+    fun titleForAvailability(availability: GlobalSearchAvailability): String = when (availability) {
+        GlobalSearchAvailability.Available -> AppStrings.GlobalSearch
+        GlobalSearchAvailability.NotConfigured -> AppStrings.GlobalSearchNotSetUpTitle
+        is GlobalSearchAvailability.Paused -> AppStrings.GlobalSearchPausedTitle
+        GlobalSearchAvailability.Unreachable -> AppStrings.GlobalSearchUnreachableTitle
+        GlobalSearchAvailability.Rejected -> AppStrings.GlobalSearchRejectedTitle
+    }
+
+    // on a banner that links to the settings itself, there's no need to spell out the way there
+    fun bannerMessageForAvailability(availability: GlobalSearchAvailability): String = when (availability) {
+        GlobalSearchAvailability.NotConfigured -> AppStrings.GlobalSearchNotSetUpMessage
+        else -> forAvailability(availability)
+    }
+
     fun forError(error: Throwable): String = when (error) {
+        is ServerNotConfigured -> AppStrings.GlobalSearchNotConfigured
         is ServerError.Network -> AppStrings.ServerUnreachable
         is ServerError.Problem -> forCode(error.code, error.retryAfterSeconds)
         is ServerError.IntegrityMismatch -> AppStrings.GlobalSearchServerBusy

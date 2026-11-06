@@ -2,4 +2,6 @@
 <resources>
     <!-- ThemeColors.Neutral900 -->
     <color name="splash_background">#171717</color>
+    <color name="splash_logo_ink">#FFFFFF</color>
+    <color name="splash_logo_accent">#7A7A7A</color>
 </resources>

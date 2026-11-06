@@ -74,7 +74,7 @@ Android Studio installs only the APK matching the device's ABI, even though five
 Builds the debug variant and installs it on **every** connected device/emulator. It doesn't launch the app.
 
 ```bash
-adb shell am start -n dev.anujyadav.harmoniq.debug/dev.anujyadav.harmoniq.MainActivity
+adb shell am start -n dev.anujyadav.harmoniq.debug/dev.anujyadav.harmoniq.HarmoniqActivity
 ```
 Launches the debug app. The format is `<applicationId>/<activity class>`; the activity class keeps the base package even in the `.debug` variant.
 
@@ -99,7 +99,7 @@ adb logcat --pid=$(adb shell pidof -s dev.anujyadav.harmoniq.debug)
 ```
 Shows everything the running debug app logs, including system/framework messages. Use this in Git Bash; in Android Studio, the **Logcat** window does the same with `package:mine`.
 
-Uncaught exceptions are caught by a global handler in `MainActivity`, which opens `ErrorActivity` (an in-app crash screen) instead of the system "app stopped" dialog. The stack trace is also logged under `HarmoniqLogger`.
+Uncaught exceptions are caught by a global handler in `HarmoniqActivity`, which opens `ErrorActivity` (an in-app crash screen) instead of the system "app stopped" dialog. The stack trace is also logged under `HarmoniqLogger`.
 
 ## Useful adb commands for this app
 

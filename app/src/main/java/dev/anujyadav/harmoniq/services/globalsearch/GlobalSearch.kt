@@ -25,6 +25,9 @@ import dev.anujyadav.harmoniq.services.globalsearch.download.DownloadProgressDat
 import dev.anujyadav.harmoniq.services.globalsearch.download.DownloadRecord
 import dev.anujyadav.harmoniq.services.globalsearch.download.DownloadRecords
 import dev.anujyadav.harmoniq.services.globalsearch.download.DownloadRequest
+import dev.anujyadav.harmoniq.services.globalsearch.download.DownloadSaver
+import dev.anujyadav.harmoniq.services.globalsearch.download.DownloadedSong
+import dev.anujyadav.harmoniq.services.globalsearch.download.DownloadedSongs
 import dev.anujyadav.harmoniq.services.globalsearch.download.ServerDownloadWorker
 import kotlin.time.toJavaDuration
 import android.net.Uri
@@ -35,6 +38,7 @@ import dev.anujyadav.harmoniq.utils.ActivityUtils
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -55,6 +59,7 @@ import kotlinx.coroutines.flow.drop
 import dev.anujyadav.harmoniq.services.globalsearch.connection.ConnectionState
 import dev.anujyadav.harmoniq.services.globalsearch.connection.ServerConnections
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -90,16 +95,8 @@ class GlobalSearch(private val symphony: Symphony) : Symphony.Hooks {
     // a client for the current connection, or null when no server is configured
     val api: HarmoniqServerApi? get() = connections.api()
 
-    // the user hasn't turned it off in Settings and a server is known (a paused one still shows its notice)
-    val isEnabled: StateFlow<Boolean> by lazy {
-        combine(symphony.settings.globalSearchEnabled.flow, connections.state) { enabled, state ->
-            enabled && state !is ConnectionState.NotConfigured
-        }.stateIn(
-            coroutineScope,
-            SharingStarted.Eagerly,
-            symphony.settings.globalSearchEnabled.value && connections.state.value !is ConnectionState.NotConfigured,
-        )
-    }
+    // only the user's own switch: without a working server it stays visible and says so, see [availability]
+    val isEnabled: StateFlow<Boolean> get() = symphony.settings.globalSearchEnabled.flow
 
     // notice from the config file, e.g. "Server maintenance tonight"
     val connectionMessage: StateFlow<String?> by lazy {
@@ -114,6 +111,16 @@ class GlobalSearch(private val symphony: Symphony) : Symphony.Hooks {
 
     private val _meta = MutableStateFlow<MetaState>(MetaState.Unknown)
     val meta = _meta.asStateFlow()
+
+    // whether the server can be used right now; everything local keeps working either way
+    val availability: StateFlow<GlobalSearchAvailability> by lazy {
+        combine(connections.state, _meta) { connection, meta -> GlobalSearchAvailability.from(connection, meta) }
+            .stateIn(
+                coroutineScope,
+                SharingStarted.Eagerly,
+                GlobalSearchAvailability.from(connections.state.value, _meta.value),
+            )
+    }
 
     // until /meta answers every type is offered; a server before v0.3.0 then hides Playlists and All
     val supportedSearchTypes: StateFlow<List<SearchType>> = _meta
@@ -199,6 +206,28 @@ class GlobalSearch(private val symphony: Symphony) : Symphony.Hooks {
         }
     }
 
+    // what Retry does: the config file may have moved the server, then ask the server itself
+    fun retryConnection() {
+        coroutineScope.launch {
+            connections.refreshRemote(force = true)
+            refreshMeta()
+            retrySearch()
+        }
+    }
+
+    /** A quiet check for recovery, the current state stays on screen until the answer is in. */
+    suspend fun checkConnection() {
+        val api = api ?: return
+        withContext(Dispatchers.IO) {
+            try {
+                _meta.value = MetaState.Ready(api.meta())
+                if (searchState.value is SearchState.Failed) retrySearch()
+            } catch (err: ServerError) {
+                onServerError(err)
+            }
+        }
+    }
+
     private var metaRequested = false
 
     // called once Global mode is first shown, so offline-only use never touches the network
@@ -229,6 +258,22 @@ class GlobalSearch(private val symphony: Symphony) : Symphony.Hooks {
             .map { LibraryLink.isCovered(it) }
             .stateIn(coroutineScope, SharingStarted.Eagerly, LibraryLink.isCovered(symphony.settings.mediaFolders.value))
     }
+
+    private val saver by lazy { DownloadSaver.create(context) }
+
+    /** Finished downloads, newest first. Separate from the library, which also has other files. */
+    @OptIn(FlowPreview::class)
+    val downloadedSongs: StateFlow<List<DownloadedSong>> by lazy {
+        // the library emits once per song while scanning
+        combine(records.records, symphony.groove.song.all.debounce(ServerConfig.libraryChangeDebounce)) { all, _ ->
+            DownloadedSongs.resolve(all.values, symphony.groove.song.pathCache, saver::exists)
+        }
+            .flowOn(Dispatchers.IO)
+            .stateIn(coroutineScope, SharingStarted.WhileSubscribed(ServerConfig.sharingStopTimeout.inWholeMilliseconds), emptyList())
+    }
+
+    // the folder has to exist for the picker to be able to select it
+    fun prepareDownloadsFolder() = saver.ensureFolder()
 
     private val _showLibraryPrompt = MutableStateFlow(false)
     val showLibraryPrompt = _showLibraryPrompt.asStateFlow()
@@ -391,7 +436,7 @@ class GlobalSearch(private val symphony: Symphony) : Symphony.Hooks {
     }
 
     private suspend fun <T> call(block: suspend (HarmoniqServerApi) -> T): Result<T> {
-        val api = api ?: return Result.failure(IllegalStateException("Global Search is not configured"))
+        val api = api ?: return Result.failure(ServerNotConfigured())
         return try {
             Result.success(block(api))
         } catch (err: ServerError) {
@@ -410,6 +455,8 @@ class GlobalSearch(private val symphony: Symphony) : Symphony.Hooks {
                 else -> ServerConfig.SEARCH_RESULT_LIMIT
             }
             val page = SearchPage.from(type, api.search(request.query, type, limit))
+            // the server answered, so an earlier failure no longer applies
+            if (_meta.value is MetaState.Failed) refreshMeta()
             when {
                 page.isEmpty && page.sectionErrors.isEmpty() -> SearchState.Empty(request.query)
                 else -> SearchState.Results(request.query, type, page)
@@ -437,7 +484,11 @@ class GlobalSearch(private val symphony: Symphony) : Symphony.Hooks {
     internal fun onServerError(err: ServerError) {
         val maybeMoved = err is ServerError.Network ||
                 (err is ServerError.Problem && err.code == ErrorCodes.UNAUTHORIZED)
-        if (maybeMoved) coroutineScope.launch { connections.refreshRemote(force = true) }
+        if (maybeMoved) {
+            // any call can be the first to notice, not only /meta
+            _meta.value = MetaState.Failed(err)
+            coroutineScope.launch { connections.refreshRemote(force = true) }
+        }
     }
 
     override fun onSymphonyDestroy() {

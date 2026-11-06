@@ -9,6 +9,7 @@ import android.graphics.Bitmap
 import android.media.audiofx.AudioEffect
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -17,7 +18,12 @@ import androidx.activity.result.contract.ActivityResultContract
 import dev.anujyadav.harmoniq.R
 import dev.anujyadav.harmoniq.Symphony
 import dev.anujyadav.harmoniq.services.groove.Song
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class RadioSession(val symphony: Symphony) {
     data class UpdateRequest(
@@ -32,7 +38,7 @@ class RadioSession(val symphony: Symphony) {
     private val artworkCacher = RadioArtworkCacher(symphony)
     private val notification = RadioNotification(symphony)
 
-    private var currentSongId: String? = null
+    private var actionStateUpdates: Job? = null
     private var receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             intent?.action?.let { action ->
@@ -42,44 +48,39 @@ class RadioSession(val symphony: Symphony) {
     }
 
     fun start() {
+        val intentFilter = IntentFilter().apply {
+            addAction(ACTION_PLAY_PAUSE)
+            addAction(ACTION_PREVIOUS)
+            addAction(ACTION_NEXT)
+            addAction(ACTION_STOP)
+            RadioNotificationAction.entries.forEach { addAction(it.actionId) }
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // only our own notification sends these, other apps control us through the media session
             symphony.applicationContext.registerReceiver(
                 receiver,
-                IntentFilter().apply {
-                    addAction(ACTION_PLAY_PAUSE)
-                    addAction(ACTION_PREVIOUS)
-                    addAction(ACTION_NEXT)
-                    addAction(ACTION_STOP)
-                },
-                Context.RECEIVER_EXPORTED,
-                // https://developer.android.com/reference/android/content/Context#RECEIVER_EXPORTED
-                // really, RECEIVER_EXPORTED and RECEIVER_NOT_EXPORTED makes no difference.
-                // the notification appears perfectly, Pano Scrobbler sees it,
-                // Wear OS can send signals to play/pause the app, other media apps can pause it,
-                // no clue what the difference here is... but here we are.
+                intentFilter,
+                Context.RECEIVER_NOT_EXPORTED,
             )
         } else {
             @SuppressLint("UnspecifiedRegisterReceiverFlag")
-            symphony.applicationContext.registerReceiver(
-                receiver,
-                IntentFilter().apply {
-                    addAction(ACTION_PLAY_PAUSE)
-                    addAction(ACTION_PREVIOUS)
-                    addAction(ACTION_NEXT)
-                    addAction(ACTION_STOP)
-                },
-            )
+            symphony.applicationContext.registerReceiver(receiver, intentFilter)
         }
         mediaSession.setCallback(
             object : MediaSessionCompat.Callback() {
+                // controllers can repeat a command, "play" while playing must not pause
                 override fun onPlay() {
                     super.onPlay()
-                    handleAction(ACTION_PLAY_PAUSE)
+                    if (!symphony.radio.isPlaying) {
+                        handleAction(ACTION_PLAY_PAUSE)
+                    }
                 }
 
                 override fun onPause() {
                     super.onPause()
-                    handleAction(ACTION_PLAY_PAUSE)
+                    if (symphony.radio.isPlaying) {
+                        handleAction(ACTION_PLAY_PAUSE)
+                    }
                 }
 
                 override fun onSkipToPrevious() {
@@ -112,6 +113,11 @@ class RadioSession(val symphony: Symphony) {
                     super.onFastForward()
                     val duration = symphony.settings.seekForwardDuration.value
                     symphony.radio.shorty.seekFromCurrent(duration)
+                }
+
+                override fun onCustomAction(action: String?, extras: Bundle?) {
+                    super.onCustomAction(action, extras)
+                    action?.let { handleAction(it) }
                 }
 
                 override fun onMediaButtonEvent(intent: Intent?): Boolean {
@@ -158,8 +164,22 @@ class RadioSession(val symphony: Symphony) {
             when (it) {
                 Radio.Events.Player.Ended -> cancel()
                 is Radio.Events.Player -> update()
+                Radio.Events.QueueOption.LoopModeChanged,
+                Radio.Events.QueueOption.ShuffleModeChanged,
+                Radio.Events.QueueOption.SpeedChanged,
+                    -> updateIfPlaying()
+
                 else -> {}
             }
+        }
+        // the buttons reflect these too, drop(1) skips the values they already start with
+        actionStateUpdates = symphony.groove.coroutineScope.launch {
+            merge(
+                symphony.groove.playlist.favorites.drop(1),
+                symphony.settings.notificationActions.flow.drop(1),
+                symphony.settings.seekBackDuration.flow.drop(1),
+                symphony.settings.seekForwardDuration.flow.drop(1),
+            ).collect { updateIfPlaying() }
         }
     }
 
@@ -169,6 +189,7 @@ class RadioSession(val symphony: Symphony) {
             ACTION_PREVIOUS -> symphony.radio.shorty.previous()
             ACTION_NEXT -> symphony.radio.shorty.skip()
             ACTION_STOP -> symphony.radio.stop()
+            else -> RadioNotificationAction.fromActionId(action)?.perform(symphony)
         }
     }
 
@@ -178,6 +199,7 @@ class RadioSession(val symphony: Symphony) {
     }
 
     fun destroy() {
+        actionStateUpdates?.cancel()
         cancel()
         symphony.applicationContext.unregisterReceiver(receiver)
     }
@@ -205,27 +227,36 @@ class RadioSession(val symphony: Symphony) {
         }
     }
 
+    private fun updateIfPlaying() {
+        if (symphony.radio.hasPlayer) {
+            update()
+        }
+    }
+
     private suspend fun updateAsync() {
         val song = symphony.radio.queue.currentSongId
             ?.let { symphony.groove.song.get(it) } ?: return
-        currentSongId = song.id
         val artworkUri = symphony.groove.song.getArtworkUri(song.id)
         val artworkBitmap = artworkCacher.getArtwork(song)
-        val playbackPosition = symphony.radio.currentPlaybackPosition
-            ?: RadioPlayer.PlaybackPosition(played = 0L, total = song.duration)
-        val isPlaying = symphony.radio.isPlaying
-        if (currentSongId != song.id) {
-            return
+        // on the main thread, like Radio.stop: it can't then happen in between this check and
+        // posting, which would bring back the notification and its service after stopping
+        withContext(Dispatchers.Main) {
+            // skipped or stopped while the artwork was loading, this is outdated
+            if (symphony.radio.queue.currentSongId != song.id) {
+                return@withContext
+            }
+            val playbackPosition = symphony.radio.currentPlaybackPosition
+                ?: RadioPlayer.PlaybackPosition(played = 0L, total = song.duration)
+            val req = UpdateRequest(
+                song = song,
+                artworkUri = artworkUri,
+                artworkBitmap = artworkBitmap,
+                playbackPosition = playbackPosition,
+                isPlaying = symphony.radio.isPlaying,
+            )
+            updateSession(req)
+            notification.update(req)
         }
-        val req = UpdateRequest(
-            song = song,
-            artworkUri = artworkUri,
-            artworkBitmap = artworkBitmap,
-            playbackPosition = playbackPosition,
-            isPlaying = isPlaying,
-        )
-        updateSession(req)
-        notification.update(req)
     }
 
     private fun updateSession(req: UpdateRequest) {
@@ -261,7 +292,8 @@ class RadioSession(val symphony: Symphony) {
                             else -> PlaybackStateCompat.STATE_PAUSED
                         },
                         req.playbackPosition.played.toLong(),
-                        1f
+                        // the system advances its seek bar by this while playing
+                        symphony.radio.currentSpeed,
                     )
                     setActions(
                         PlaybackStateCompat.ACTION_PLAY
@@ -274,6 +306,11 @@ class RadioSession(val symphony: Symphony) {
                                 or PlaybackStateCompat.ACTION_FAST_FORWARD
                                 or PlaybackStateCompat.ACTION_SEEK_TO
                     )
+                    // Android 13+ builds its media buttons from these, not the notification's
+                    RadioNotification.selectedActions(symphony).forEach { action ->
+                        val presentation = action.present(symphony, req.song.id)
+                        addCustomAction(action.actionId, presentation.title, presentation.icon)
+                    }
                     build()
                 }
             )

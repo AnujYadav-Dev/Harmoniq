@@ -60,13 +60,38 @@ class AlbumArtistRepository(private val symphony: Symphony) {
                     _all.update {
                         it + albumArtist
                     }
-                    emitCount()
                     AlbumArtist(
                         name = albumArtist,
                         numberOfAlbums = 1,
                         numberOfTracks = 1,
                     )
                 }
+            }
+            // the cache only holds a new entry once compute is done
+            emitCount()
+        }
+    }
+
+    internal fun remove(song: Song) {
+        song.albumArtists.forEach { albumArtist ->
+            songIdsCache[albumArtist]?.remove(song.id)
+            val albumArtistObj = cache[albumArtist] ?: return@forEach
+            albumArtistObj.numberOfTracks--
+            symphony.groove.album.getIdFromSong(song)?.let {
+                val remainingAlbums = songIdsCache[albumArtist].orEmpty()
+                    .mapNotNull { id -> symphony.groove.song.get(id) }
+                    .mapNotNull { other -> symphony.groove.album.getIdFromSong(other) }
+                    .toSet()
+                albumIdsCache[albumArtist]?.clear()
+                albumIdsCache[albumArtist]?.addAll(remainingAlbums)
+                albumArtistObj.numberOfAlbums = remainingAlbums.size
+            }
+            if (albumArtistObj.numberOfTracks <= 0) {
+                cache.remove(albumArtist)
+                songIdsCache.remove(albumArtist)
+                albumIdsCache.remove(albumArtist)
+                _all.update { it - albumArtist }
+                emitCount()
             }
         }
     }

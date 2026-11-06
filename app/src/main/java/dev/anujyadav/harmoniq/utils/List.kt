@@ -25,4 +25,6 @@ fun <T> List<T>.mutate(fn: MutableList<T>.() -> Unit): List<T> {
     return out
 }
 
-fun <T> concurrentListOf(): MutableList<T> = CopyOnWriteArrayList(mutableListOf<T>())
+fun <T> List<T>.plusIfAbsent(item: T) = if (contains(item)) this else this + item
+
+fun <T> concurrentListOf():MutableList<T> = CopyOnWriteArrayList(mutableListOf<T>())

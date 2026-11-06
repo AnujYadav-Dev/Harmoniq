@@ -17,73 +17,75 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import dev.anujyadav.harmoniq.services.groove.Groove
 import dev.anujyadav.harmoniq.utils.AppStrings
 import dev.anujyadav.harmoniq.ui.components.SongSwipeScope
+import kotlinx.coroutines.flow.StateFlow
 
 enum class LibraryPill(
     val icon: ImageVector,
     val label: String,
-    val countProvider: ((Groove) -> Int)?,
+    // what the pill counts: a flow, as the library keeps changing while the pill is on screen
+    val countedItems: ((Groove) -> StateFlow<List<String>>)?,
 ) {
     ForYou(
         icon = Icons.Filled.Star,
         label = AppStrings.ForYou,
-        countProvider = null,
+        countedItems = null,
     ),
     Songs(
         icon = Icons.Filled.MusicNote,
         label = AppStrings.Songs,
-        countProvider = { it.song.all.value.size },
+        countedItems = { it.song.all },
     ),
 
     // Global Search: only hidden while the user has turned it off in Settings
     WatchList(
         icon = Icons.Filled.WatchLater,
         label = AppStrings.WatchList,
-        countProvider = null,
+        countedItems = null,
     ),
     Downloads(
         icon = Icons.Filled.Download,
         label = AppStrings.Downloads,
-        countProvider = null,
+        countedItems = null,
     ),
     Albums(
         icon = Icons.Filled.Album,
         label = AppStrings.Albums,
-        countProvider = { it.album.all.value.size },
+        countedItems = { it.album.all },
     ),
     Artists(
         icon = Icons.Filled.Group,
         label = AppStrings.Artists,
-        countProvider = { it.artist.all.value.size },
+        countedItems = { it.artist.all },
     ),
     AlbumArtists(
         icon = Icons.Filled.Face,
         label = AppStrings.AlbumArtists,
-        countProvider = { it.albumArtist.all.value.size },
+        countedItems = { it.albumArtist.all },
     ),
     Genres(
         icon = Icons.Filled.Tune,
         label = AppStrings.Genres,
-        countProvider = { it.genre.all.value.size },
+        countedItems = { it.genre.all },
     ),
     Playlists(
         icon = Icons.AutoMirrored.Filled.QueueMusic,
         label = AppStrings.Playlists,
-        countProvider = { it.playlist.all.value.size },
+        countedItems = { it.playlist.all },
     ),
     Browser(
         icon = Icons.Filled.Folder,
         label = AppStrings.Browser,
-        countProvider = null,
+        countedItems = null,
     ),
     Folders(
         icon = Icons.Filled.FolderOpen,
         label = AppStrings.Folders,
-        countProvider = null,
+        countedItems = null,
     ),
     Tree(
         icon = Icons.Filled.AccountTree,
         label = AppStrings.Tree,
-        countProvider = null,
+        countedItems = null,
     );
 
     // swipe configuration used by the song rows this pill shows

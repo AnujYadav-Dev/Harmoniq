@@ -4,6 +4,7 @@ import android.content.Context
 import android.database.Cursor
 import android.net.Uri
 import android.provider.DocumentsContract
+import java.io.IOException
 
 // Source:  https://android.googlesource.com/platform/frameworks/support/+/a9ac247af2afd4115c3eb6d16c05bc92737d6305/documentfile/src/main/java/androidx/documentfile/provider
 data class DocumentFileX(
@@ -31,7 +32,7 @@ data class DocumentFileX(
                 }
                 items.add(file)
             }
-        }
+        } ?: throw IOException("Listing '$uri' failed") // not the same as an empty folder
         return items
     }
 

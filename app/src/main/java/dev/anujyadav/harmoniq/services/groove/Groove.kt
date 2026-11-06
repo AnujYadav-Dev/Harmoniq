@@ -13,6 +13,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class Groove(private val symphony: Symphony) : Symphony.Hooks {
     enum class Kind {
@@ -26,6 +28,9 @@ class Groove(private val symphony: Symphony) : Symphony.Hooks {
 
     val coroutineScope = CoroutineScope(Dispatchers.Default)
     var readyDeferred = CompletableDeferred<Boolean>()
+
+    // a reset during another refresh's scan would mix the results of both
+    private val refreshMutex = Mutex()
 
     val exposer = MediaExposer(symphony)
     val song = SongRepository(symphony)
@@ -72,13 +77,15 @@ class Groove(private val symphony: Symphony) : Symphony.Hooks {
 
     fun fetch(options: FetchOptions) {
         coroutineScope.launch {
-            if (options.resetInMemoryCache) {
-                reset()
+            refreshMutex.withLock {
+                if (options.resetInMemoryCache) {
+                    reset()
+                }
+                if (options.resetPersistentCache) {
+                    clearCache()
+                }
+                fetch()
             }
-            if (options.resetPersistentCache) {
-                clearCache()
-            }
-            fetch()
         }
     }
 
@@ -93,9 +100,37 @@ class Groove(private val symphony: Symphony) : Symphony.Hooks {
         )
     }
 
+    /**
+     * A scan reports every file it finds, only what changed may reach the repositories:
+     * their track counts and lists would grow on each rescan otherwise.
+     */
+    internal fun onSongScanned(scanned: Song) {
+        when (val knownId = song.pathCache[scanned.path]) {
+            scanned.id -> return
+            // the file was modified, which gives it a new id
+            null -> {}
+            else -> song.get(knownId)?.let { removeSong(it) }
+        }
+        albumArtist.onSong(scanned)
+        album.onSong(scanned)
+        artist.onSong(scanned)
+        genre.onSong(scanned)
+        song.onSong(scanned)
+    }
+
+    internal fun removeSong(removed: Song) {
+        albumArtist.remove(removed)
+        album.remove(removed)
+        artist.remove(removed)
+        genre.remove(removed)
+        song.remove(removed)
+    }
+
     override fun onSymphonyReady() {
         coroutineScope.launch {
-            fetch()
+            refreshMutex.withLock {
+                fetch()
+            }
             readyDeferred.complete(true)
         }
     }

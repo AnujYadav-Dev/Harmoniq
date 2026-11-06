@@ -64,10 +64,23 @@ class SongRepository(private val symphony: Symphony) {
     internal fun onSong(song: Song) {
         cache[song.id] = song
         pathCache[song.path] = song.id
-        explorer.addChildFile(SimplePath(song.path)).data = song.id
+        explorer.ensureChildFile(SimplePath(song.path)).data = song.id
         emitIds()
         _all.update {
             it + song.id
+        }
+        emitCount()
+    }
+
+    internal fun remove(song: Song) {
+        if (cache.remove(song.id) == null) {
+            return
+        }
+        pathCache.remove(song.path, song.id)
+        explorer.removeChildFile(SimplePath(song.path)) { it.data == song.id }
+        emitIds()
+        _all.update {
+            it - song.id
         }
         emitCount()
     }

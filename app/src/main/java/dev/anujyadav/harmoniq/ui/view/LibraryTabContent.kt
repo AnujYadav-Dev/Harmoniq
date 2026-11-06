@@ -265,7 +265,8 @@ private fun PillNavRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         items(pills, key = { it.name }) { pill ->
-            val count = pill.countProvider?.invoke(context.symphony.groove)
+            val count = pill.countedItems?.invoke(context.symphony.groove)
+                ?.collectAsState()?.value?.size
             FilterChip(
                 selected = selectedPill == pill,
                 onClick = { onPillSelected(pill) },

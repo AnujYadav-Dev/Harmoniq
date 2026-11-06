@@ -65,7 +65,6 @@ class AlbumRepository(private val symphony: Symphony) {
                 _all.update {
                     it + albumId
                 }
-                emitCount()
                 Album(
                     id = albumId,
                     name = song.album!!,
@@ -80,6 +79,22 @@ class AlbumRepository(private val symphony: Symphony) {
                     duration = song.duration.milliseconds,
                 )
             }
+        }
+        // the cache only holds a new entry once compute is done
+        emitCount()
+    }
+
+    internal fun remove(song: Song) {
+        val albumId = getIdFromSong(song) ?: return
+        songIdsCache[albumId]?.remove(song.id)
+        val album = cache[albumId] ?: return
+        album.numberOfTracks--
+        album.duration -= song.duration.milliseconds
+        if (album.numberOfTracks <= 0) {
+            cache.remove(albumId)
+            songIdsCache.remove(albumId)
+            _all.update { it - albumId }
+            emitCount()
         }
     }
 

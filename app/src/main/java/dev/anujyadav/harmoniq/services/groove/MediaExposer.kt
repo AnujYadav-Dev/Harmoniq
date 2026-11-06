@@ -40,6 +40,10 @@ class MediaExposer(private val symphony: Symphony) {
         val filter: MediaFilter,
         val songParseOptions: Song.ParseOptions,
     ) {
+        // a folder could not be read, so files that were not found may still exist
+        @Volatile
+        var isIncomplete = false
+
         companion object {
             suspend fun create(symphony: Symphony): ScanCycle {
                 val songCache = ConcurrentHashMap(symphony.database.songCache.entriesPathMapped())
@@ -77,9 +81,15 @@ class MediaExposer(private val symphony: Symphony) {
                     with(Dispatchers.IO) {
                         scanMediaTree(cycle, path, it)
                     }
+                } ?: run {
+                    Logger.warn("MediaExposer", "media folder unavailable: $x")
+                    cycle.isIncomplete = true
                 }
             }
-            trimCache(cycle)
+            if (!cycle.isIncomplete) {
+                removeMissingSongs(cycle)
+                trimCache(cycle)
+            }
         } catch (err: Exception) {
             Logger.error("MediaExposer", "fetch failed", err)
         }
@@ -105,6 +115,7 @@ class MediaExposer(private val symphony: Symphony) {
             }
         } catch (err: Exception) {
             Logger.error("MediaExposer", "scan media tree failed", err)
+            cycle.isIncomplete = true
         }
     }
 
@@ -148,9 +159,9 @@ class MediaExposer(private val symphony: Symphony) {
             cycle.artworkCacheUnused.remove(it)
         }
         cycle.lyricsCacheUnused.remove(song.id)
-        explorer.addChildFile(path)
+        explorer.ensureChildFile(path)
         withContext(Dispatchers.Main) {
-            emitSong(song)
+            symphony.groove.onSongScanned(song)
         }
     }
 
@@ -160,7 +171,7 @@ class MediaExposer(private val symphony: Symphony) {
         file: DocumentFileX,
     ) {
         uris[path.pathString] = file.uri
-        explorer.addChildFile(path)
+        explorer.ensureChildFile(path)
     }
 
     private fun scanM3UFile(
@@ -169,7 +180,21 @@ class MediaExposer(private val symphony: Symphony) {
         file: DocumentFileX,
     ) {
         uris[path.pathString] = file.uri
-        explorer.addChildFile(path)
+        explorer.ensureChildFile(path)
+    }
+
+    // a rescan keeps the loaded library, so songs whose files are gone have to leave it
+    private suspend fun removeMissingSongs(cycle: ScanCycle) {
+        val missing = cycle.songCache.values.filter {
+            cycle.songCacheUnused.contains(it.id) && symphony.groove.song.get(it.id) != null
+        }
+        withContext(Dispatchers.Main) {
+            missing.forEach {
+                symphony.groove.removeSong(it)
+                explorer.removeChildFile(SimplePath(it.path))
+                uris.remove(it.path)
+            }
+        }
     }
 
     private suspend fun trimCache(cycle: ScanCycle) {
@@ -198,14 +223,6 @@ class MediaExposer(private val symphony: Symphony) {
         explorer = SimpleFileSystem.Folder()
         symphony.database.songCache.clear()
         emitUpdate(false)
-    }
-
-    private fun emitSong(song: Song) {
-        symphony.groove.albumArtist.onSong(song)
-        symphony.groove.album.onSong(song)
-        symphony.groove.artist.onSong(song)
-        symphony.groove.genre.onSong(song)
-        symphony.groove.song.onSong(song)
     }
 
     private fun emitFinish() {

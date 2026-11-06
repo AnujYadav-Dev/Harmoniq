@@ -48,12 +48,27 @@ class GenreRepository(private val symphony: Symphony) {
                     _all.update {
                         it + genre
                     }
-                    emitCount()
                     Genre(
                         name = genre,
                         numberOfTracks = 1,
                     )
                 }
+            }
+            // the cache only holds a new entry once compute is done
+            emitCount()
+        }
+    }
+
+    internal fun remove(song: Song) {
+        song.genres.forEach { genre ->
+            songIdsCache[genre]?.remove(song.id)
+            val genreObj = cache[genre] ?: return@forEach
+            genreObj.numberOfTracks--
+            if (genreObj.numberOfTracks <= 0) {
+                cache.remove(genre)
+                songIdsCache.remove(genre)
+                _all.update { it - genre }
+                emitCount()
             }
         }
     }

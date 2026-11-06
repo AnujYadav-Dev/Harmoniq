@@ -9,6 +9,7 @@ import dev.anujyadav.harmoniq.utils.FuzzySearcher
 import dev.anujyadav.harmoniq.utils.KeyGenerator
 import dev.anujyadav.harmoniq.utils.Logger
 import dev.anujyadav.harmoniq.utils.mutate
+import dev.anujyadav.harmoniq.utils.plusIfAbsent
 import dev.anujyadav.harmoniq.utils.withCase
 import java.io.FileNotFoundException
 import java.util.concurrent.ConcurrentHashMap
@@ -78,8 +79,9 @@ class PlaylistRepository(private val symphony: Symphony) {
                     else -> x
                 }
                 cache[playlist.id] = playlist
+                // fetch also runs on rescans that keep what is already loaded
                 _all.update {
-                    it + playlist.id
+                    it.plusIfAbsent(playlist.id)
                 }
                 emitUpdateId()
                 emitCount()
@@ -153,7 +155,7 @@ class PlaylistRepository(private val symphony: Symphony) {
     fun add(playlist: Playlist) {
         cache[playlist.id] = playlist
         _all.update {
-            it + playlist.id
+            it.plusIfAbsent(playlist.id)
         }
         emitUpdateId()
         emitCount()

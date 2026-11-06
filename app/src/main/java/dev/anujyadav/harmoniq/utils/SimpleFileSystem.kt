@@ -28,37 +28,43 @@ sealed class SimpleFileSystem(val parent: Folder?, val name: String) {
         val isEmpty get() = children.isEmpty()
         val childFoldersCount get() = children.values.count { it is Folder }
 
-        fun addChildFolder(name: String): Folder {
-            if (children.containsKey(name)) {
-                throw Exception("Child '$name' already exists")
+        /**
+         * The file at [path], created along with its parent folders when missing.
+         * Safe to call concurrently, scans add sibling files in parallel.
+         */
+        fun ensureChildFile(path: SimplePath): File {
+            var folder = this
+            for (x in path.parts.dropLast(1)) {
+                val current = folder
+                folder = current.children.getOrPut(x) { Folder(current, x) } as? Folder
+                    ?: throw Exception("Child '$x' is not a folder")
             }
-            val child = Folder(this, name)
-            children[name] = child
-            return child
+            val name = path.parts.last()
+            val current = folder
+            return current.children.getOrPut(name) { File(current, name) } as? File
+                ?: throw Exception("Child '$name' is not a file")
         }
 
-        fun addChildFile(name: String): File {
-            if (children.containsKey(name)) {
-                throw Exception("Child '$name' already exists")
+        /**
+         * Removes the file at [path] if [predicate] allows it, along with the folders
+         * this leaves empty. Does nothing when there is no such file.
+         */
+        fun removeChildFile(path: SimplePath, predicate: (File) -> Boolean = { true }) {
+            var folder = this
+            for (x in path.parts.dropLast(1)) {
+                folder = folder.children[x] as? Folder ?: return
             }
-            val child = File(this, name)
-            children[name] = child
-            return child
-        }
-
-        fun addChildFile(path: SimplePath): File {
-            val parts = path.parts.toMutableList()
-            var parent = this
-            while (parts.size > 1) {
-                val x = parts.removeAt(0)
-                val found = parent.children[x]
-                parent = when (found) {
-                    is Folder -> found
-                    null -> parent.addChildFolder(x)
-                    else -> throw Exception("Child '$x' is not a folder")
-                }
+            val name = path.parts.last()
+            val file = folder.children[name] as? File ?: return
+            if (!predicate(file)) {
+                return
             }
-            return parent.addChildFile(parts[0])
+            folder.children.remove(name)
+            while (folder.isEmpty) {
+                val parent = folder.parent ?: return
+                parent.children.remove(folder.name)
+                folder = parent
+            }
         }
     }
 }

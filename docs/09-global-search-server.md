@@ -104,7 +104,8 @@ Release builds normally need **no** keys: the config file on GitHub supplies the
 | `release`, `nightly`, `canary` | **No**, HTTPS only | Android's default since API 28 ([network security config](https://developer.android.com/privacy-and-security/security-config)) |
 
 Also for non-debug builds: the certificate must be trusted by the system. User-installed CAs (and self-signed
-certificates) are not trusted by apps targeting API 24+, so use a real certificate, which Cloudflare Tunnel provides.
+certificates) are not trusted by apps targeting API 24+, so use a real certificate. Cloudflare Tunnel and Let's Encrypt
+both provide one.
 An `http://` URL in a canary/release build fails with **"Server unreachable"**.
 
 ## Changing or updating the server URL or token
@@ -192,7 +193,7 @@ Cleartext only works in `debug`. To test a `canary` or `release` build, point it
 | *No Global Search server is set up* | Download tapped while no server is known | **Settings → Global search → Server** |
 | *Rate limited, try again in N s* / *Rate limited, try again later* | Per-device (30 searches/min, 60 downloads/h) or global limit | Wait. Limits are set on the server |
 | *Server busy, will retry* | A retryable server error (`upstream_error`, `queue_full`, `too_many_active_jobs`, …) | Downloads retry by themselves (up to 5 runs). If it persists, check `/v1/meta` and the server logs |
-| *Server temporarily blocked by YouTube* / banner *YouTube is blocking the server right now* | The server's IP is bot-checked by YouTube | Server side: update yt-dlp, IPv6 (`YTDLP_IP_VERSION`), see the server [troubleshooting](https://github.com/AnujYadav-Dev/Harmoniq-server/blob/main/docs/deployment-guide.md#15-troubleshooting) |
+| *Server temporarily blocked by YouTube* / banner *YouTube is blocking the server right now* | The server's IP is bot-checked by YouTube | Server side: update yt-dlp, then check the proxy and cookies. See the server troubleshooting [on a VPS](https://github.com/AnujYadav-Dev/Harmoniq-server/blob/main/docs/deployment-vps.md#13-troubleshooting) or [at home](https://github.com/AnujYadav-Dev/Harmoniq-server/blob/main/docs/deployment-guide.md#15-troubleshooting) |
 | *Unexpected server response* | The response didn't match the API contract (wrong URL pointing at another web server, or app/server versions out of step) | Check the URL; `/v1/meta` must return JSON |
 | *Search text is empty or too long* | Query over 200 characters | Shorten it |
 | *This video is private, removed or not available* · *This video is age restricted* · *Live streams can't be downloaded* · *Longer than the server's limit* | That video can't be downloaded | Pick another result |
@@ -247,12 +248,8 @@ server JSON fixtures in `app/src/test/resources/globalsearch/`. Design record an
 
 ## Next steps
 
-1. Deploy the server with a stable HTTPS URL
-   ([deployment guide §16](https://github.com/AnujYadav-Dev/Harmoniq-server/blob/main/docs/deployment-guide.md#16-next-steps--remaining-work)).
-2. Put that URL and a production token into [`config/global-search.json`](../config/global-search.json) and commit it
-   (optionally also as built-in values in `local.properties` for `canary` and `release`).
-3. Build a **signed canary**, install it on an Android 9 (API 28) and an Android 14 (API 34) device or emulator, and
+1. Build a **signed canary**, install it on an Android 9 (API 28) and an Android 14 (API 34) device or emulator, and
    run the [test matrix](https://github.com/AnujYadav-Dev/Harmoniq-server/blob/main/docs/android-integration-plan.md#16-validating-the-complete-flow-before-testers-get-it).
-4. Test a signed `release` build the same way (R8), then commit the Global Search changes.
-5. After an AGP upgrade: move WorkManager past 2.10.x (2.11+ needs Room 2.7) and drop the `NullSafeMutableLiveData`
+2. Test a signed `release` build the same way (R8).
+3. After an AGP upgrade: move WorkManager past 2.10.x (2.11+ needs Room 2.7) and drop the `NullSafeMutableLiveData`
    lint exception.

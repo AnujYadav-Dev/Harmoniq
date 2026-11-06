@@ -141,7 +141,7 @@ HARMONIQ_SERVER_URL_DEBUG=http://127.0.0.1:8000
 HARMONIQ_APP_TOKEN_DEBUG=<token from the server's APP_TOKENS>
 ```
 
-Details: [docs/09-global-search-server.md](./docs/09-global-search-server.md). Setting up the server itself: the [Harmoniq-server deployment guide](https://github.com/AnujYadav-Dev/Harmoniq-server/blob/main/docs/deployment-guide.md).
+Details: [docs/09-global-search-server.md](./docs/09-global-search-server.md). Setting up the server itself: the [VPS guide](https://github.com/AnujYadav-Dev/Harmoniq-server/blob/main/docs/deployment-vps.md) or the [home-machine guide](https://github.com/AnujYadav-Dev/Harmoniq-server/blob/main/docs/deployment-guide.md).
 
 ### Developer documentation
 

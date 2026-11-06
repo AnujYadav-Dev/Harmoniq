@@ -28,43 +28,51 @@
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:text="@string/widget_preview_song"
-                android:textColor="#FFFFFFFF"
+                android:textColor="@color/widget_preview_on_surface"
                 android:textSize="14sp" />
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:text="@string/widget_preview_artist"
-                android:textColor="#FF9A9AA5"
+                android:textColor="@color/widget_preview_on_surface_variant"
                 android:textSize="12sp" />
         </LinearLayout>
         <ImageView
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:contentDescription="@null"
-            android:padding="8dp"
+            android:padding="12dp"
             android:src="@drawable/material_icon_favorite_border"
-            android:tint="#FF9A9AA5" />
+            android:tint="@color/widget_preview_on_surface_variant" />
     </LinearLayout>
+    <ProgressBar
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:max="100"
+        android:progress="40"
+        android:progressBackgroundTint="@color/widget_preview_row"
+        android:progressTint="@color/widget_preview_primary" />
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
         android:orientation="horizontal">
         <ImageView
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:contentDescription="@null"
-            android:padding="8dp"
+            android:padding="12dp"
             android:src="@drawable/material_icon_shuffle_off"
-            android:tint="#FF9A9AA5" />
+            android:tint="@color/widget_preview_on_surface_variant" />
         <ImageView
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:contentDescription="@null"
-            android:padding="8dp"
+            android:padding="12dp"
             android:src="@drawable/material_icon_skip_previous"
-            android:tint="#FFFFFFFF" />
+            android:tint="@color/widget_preview_on_surface" />
         <ImageView
             android:layout_width="48dp"
             android:layout_height="48dp"
@@ -72,20 +80,20 @@
             android:contentDescription="@null"
             android:padding="10dp"
             android:src="@drawable/material_icon_play"
-            android:tint="#FF23232A" />
+            android:tint="@color/widget_preview_on_primary" />
         <ImageView
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:contentDescription="@null"
-            android:padding="8dp"
+            android:padding="12dp"
             android:src="@drawable/material_icon_skip_next"
-            android:tint="#FFFFFFFF" />
+            android:tint="@color/widget_preview_on_surface" />
         <ImageView
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:contentDescription="@null"
-            android:padding="8dp"
+            android:padding="12dp"
             android:src="@drawable/material_icon_repeat_off"
-            android:tint="#FF9A9AA5" />
+            android:tint="@color/widget_preview_on_surface_variant" />
     </LinearLayout>
 </LinearLayout>

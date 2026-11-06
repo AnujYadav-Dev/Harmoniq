@@ -10,19 +10,19 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/widget_preview_lyrics_previous"
-        android:textColor="#FF9A9AA5"
+        android:textColor="@color/widget_preview_on_surface_variant"
         android:textSize="13sp" />
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/widget_preview_lyrics_current"
-        android:textColor="#FFB9A7F5"
+        android:textColor="@color/widget_preview_on_surface"
         android:textSize="16sp"
         android:textStyle="bold" />
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/widget_preview_lyrics_next"
-        android:textColor="#FF9A9AA5"
+        android:textColor="@color/widget_preview_on_surface_variant"
         android:textSize="13sp" />
 </LinearLayout>

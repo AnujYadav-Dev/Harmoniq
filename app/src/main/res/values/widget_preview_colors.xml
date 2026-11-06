@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- for the widget picker's previews, which can't use the app's theme -->
+    <color name="widget_preview_surface">#FFF5F5F5</color>
+    <color name="widget_preview_row">#FFE5E5E5</color>
+    <color name="widget_preview_art">#FFD4D4D4</color>
+    <color name="widget_preview_on_surface">#FF262626</color>
+    <color name="widget_preview_on_surface_variant">#FF525252</color>
+    <color name="widget_preview_primary">#FF6D4FD8</color>
+    <color name="widget_preview_on_primary">#FFFFFFFF</color>
+</resources>

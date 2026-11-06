@@ -16,6 +16,7 @@ Detailed topics live in [`docs/`](docs/):
 | 7 | [Gradle command reference](docs/07-gradle-commands.md) | Every command used in this project, explained |
 | 8 | [Troubleshooting](docs/08-troubleshooting.md) | Build, install and runtime problems and their fixes |
 | 9 | [Global Search server](docs/09-global-search-server.md) | How the app reaches harmoniq-server, URL/token keys per build type, changing the server, local testing, troubleshooting |
+| 11 | [Widgets & background playback](docs/11-widgets-and-background-playback.md) | Playback commands, the snapshot widgets draw from, each widget's sizes, adding a widget, shortcuts and the Quick Settings tile |
 
 ---
 
@@ -58,7 +59,19 @@ On first launch, the library is empty until you add a media folder (top-bar fold
 ```bash
 adb shell am start-foreground-service -n dev.anujyadav.harmoniq.debug/dev.anujyadav.harmoniq.services.radio.RadioNotificationService -a dev.anujyadav.harmoniq.playback.RUN -d harmoniq-command://resume
 ```
-Continues the saved queue with no activity open, like a widget will. Only debug builds export this service. The other commands are in `PlaybackCommand`, for example `harmoniq-command://next` or `harmoniq-command://shuffle_all`.
+Continues the saved queue with no activity open, like a widget does. Only debug builds export this service. The other commands are in `PlaybackCommand`, for example `harmoniq-command://next` or `harmoniq-command://shuffle_all`.
+
+## Background playback and widgets
+
+Music can start and keep playing with no activity open. The widget picker has nine entries, and there are launcher shortcuts and a Quick Settings tile for the sleep timer.
+
+- **Widgets draw from a saved snapshot** and never create `Symphony` to do it. Only a button press does.
+- **Buttons send a `PlaybackCommand`** to `RadioNotificationService`. Add new actions there, not in a widget.
+- **No widget means no work.** Updates follow player events and are throttled.
+- **The synced lyrics widget is off by default**, with a switch in **Settings → Player**. It is the only widget that updates while a song plays, and its battery cost hasn't been measured.
+- **Test on a real launcher.** Unit tests can't show how a launcher resizes a widget or what its picker looks like.
+
+See [Widgets & background playback](docs/11-widgets-and-background-playback.md).
 
 ## The five things most likely to trip you up
 

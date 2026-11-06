@@ -7,12 +7,12 @@
     android:orientation="horizontal"
     android:padding="8dp">
         <ImageView
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:contentDescription="@null"
-            android:padding="8dp"
+            android:padding="12dp"
             android:src="@drawable/material_icon_shuffle"
-            android:tint="#FFFFFFFF" />
+            android:tint="@color/widget_preview_on_surface" />
         <ImageView
             android:layout_width="48dp"
             android:layout_height="48dp"
@@ -20,5 +20,5 @@
             android:contentDescription="@null"
             android:padding="10dp"
             android:src="@drawable/material_icon_play"
-            android:tint="#FF23232A" />
+            android:tint="@color/widget_preview_on_primary" />
 </LinearLayout>

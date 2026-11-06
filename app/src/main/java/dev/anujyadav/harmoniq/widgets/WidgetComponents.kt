@@ -40,14 +40,18 @@ import dev.anujyadav.harmoniq.utils.AppStrings
 /** Sizes shared by the widgets. */
 internal object WidgetDimens {
     val ContentPadding = 8.dp
+    val TightPadding = 4.dp
     val Spacing = 8.dp
-    val ControlSize = 40.dp
-    val ControlIconPadding = 8.dp
+
+    // 48dp is the smallest comfortable touch target, the icon inside stays at 24dp
+    val ControlSize = 48.dp
+    val ControlIconPadding = 12.dp
     val PlayButtonSize = 48.dp
     val PlayButtonIconPadding = 10.dp
     val ArtworkRadius = 12.dp
     val ArtworkBarSize = 48.dp
     val ArtworkFullSize = 72.dp
+    val ArtworkPlaceholderSize = 48.dp
     val ProgressHeight = 4.dp
     val TitleFontSize = 14.sp
     val SubtitleFontSize = 12.sp

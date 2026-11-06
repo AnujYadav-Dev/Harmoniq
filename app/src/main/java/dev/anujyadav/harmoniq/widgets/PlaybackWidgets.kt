@@ -4,11 +4,15 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.LocalSize
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
@@ -78,21 +82,26 @@ internal abstract class PlaybackWidgetReceiver : GlanceAppWidgetReceiver() {
     }
 }
 
-private object PlayerSizes {
-    val Bar = DpSize(180.dp, 40.dp)
-    val WideBar = DpSize(250.dp, 40.dp)
-    val Full = DpSize(250.dp, 110.dp)
-    val All = setOf(Bar, WideBar, Full)
+/*
+ * Android picks the size closest to the widget's, not the biggest that fits. Full has to be as wide
+ * as WideBar, or a large widget would be closer to the bar and get that instead.
+ */
+internal object PlayerSizes {
+    val Bar = DpSize(180.dp, 56.dp)
+    val WideBar = DpSize(280.dp, 56.dp)
+    val Full = DpSize(280.dp, 110.dp)
+    val Tall = DpSize(280.dp, 140.dp)
+    val All = setOf(Bar, WideBar, Full, Tall)
     const val ARTWORK_DP = 96
 }
 
-private object QuickActionSizes {
-    val Single = DpSize(40.dp, 40.dp)
-    val Both = DpSize(110.dp, 40.dp)
+internal object QuickActionSizes {
+    val Single = DpSize(56.dp, 56.dp)
+    val Both = DpSize(110.dp, 56.dp)
     val All = setOf(Single, Both)
 }
 
-private object AlbumArtSizes {
+internal object AlbumArtSizes {
     val Small = DpSize(110.dp, 110.dp)
     val All = setOf(Small)
     const val ARTWORK_DP = 320
@@ -145,30 +154,37 @@ internal fun PlayerContent(state: PlaybackWidgetState) {
     val size = LocalSize.current
     WidgetRoot {
         when {
-            size.height >= PlayerSizes.Full.height -> FullPlayer(state)
-            else -> PlayerBar(state, showPrevious = size.width >= PlayerSizes.WideBar.width)
+            size.height >= PlayerSizes.Tall.height -> FullPlayer(state, WidgetDimens.ArtworkFullSize)
+            size.height >= PlayerSizes.Full.height -> FullPlayer(state, WidgetDimens.ArtworkBarSize)
+            else -> PlayerBar(state, isWide = size.width >= PlayerSizes.WideBar.width)
         }
     }
 }
 
 @Composable
-private fun PlayerBar(state: PlaybackWidgetState, showPrevious: Boolean) {
+private fun PlayerBar(state: PlaybackWidgetState, isWide: Boolean) {
     Row(
-        modifier = GlanceModifier.fillMaxSize().padding(WidgetDimens.ContentPadding),
+        modifier = GlanceModifier.fillMaxSize().padding(
+            horizontal = WidgetDimens.ContentPadding,
+            vertical = WidgetDimens.TightPadding,
+        ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        WidgetArtwork(
-            state.artwork,
-            state.snapshot.song?.title,
-            GlanceModifier
-                .size(WidgetDimens.ArtworkBarSize)
-                .cornerRadius(WidgetDimens.ArtworkRadius),
-        )
-        Spacer(GlanceModifier.width(WidgetDimens.Spacing))
+        // when narrow, the song's name needs this room more
+        if (isWide) {
+            WidgetArtwork(
+                state.artwork,
+                state.snapshot.song?.title,
+                GlanceModifier
+                    .size(WidgetDimens.ArtworkBarSize)
+                    .cornerRadius(WidgetDimens.ArtworkRadius),
+            )
+            Spacer(GlanceModifier.width(WidgetDimens.Spacing))
+        }
         SongText(state, GlanceModifier.defaultWeight())
         if (state.snapshot.song == null) {
             ShuffleAllControl()
-        } else if (showPrevious) {
+        } else if (isWide) {
             WidgetControl(R.drawable.material_icon_skip_previous, AppStrings.Previous, PlaybackCommand.Previous)
         }
         PlayPauseButton(state)
@@ -179,9 +195,14 @@ private fun PlayerBar(state: PlaybackWidgetState, showPrevious: Boolean) {
 }
 
 @Composable
-private fun FullPlayer(state: PlaybackWidgetState) {
+private fun FullPlayer(state: PlaybackWidgetState, artworkSize: Dp) {
     val snapshot = state.snapshot
-    Column(modifier = GlanceModifier.fillMaxSize().padding(WidgetDimens.ContentPadding)) {
+    Column(
+        modifier = GlanceModifier.fillMaxSize().padding(
+            horizontal = WidgetDimens.ContentPadding,
+            vertical = WidgetDimens.TightPadding,
+        ),
+    ) {
         Row(
             modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
             verticalAlignment = Alignment.CenterVertically,
@@ -190,7 +211,7 @@ private fun FullPlayer(state: PlaybackWidgetState) {
                 state.artwork,
                 snapshot.song?.title,
                 GlanceModifier
-                    .size(WidgetDimens.ArtworkFullSize)
+                    .size(artworkSize)
                     .cornerRadius(WidgetDimens.ArtworkRadius),
             )
             Spacer(GlanceModifier.width(WidgetDimens.Spacing))
@@ -253,13 +274,18 @@ private fun ProgressBar(state: PlaybackWidgetState) {
 
 @Composable
 internal fun AlbumArtContent(state: PlaybackWidgetState) {
+    val description = state.snapshot.song?.title ?: AppStrings.NothingIsBeingPlayedRightNow
     WidgetRoot {
-        Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
-            WidgetArtwork(
-                state.artwork,
-                state.snapshot.song?.title ?: AppStrings.NothingIsBeingPlayedRightNow,
-                GlanceModifier.fillMaxSize(),
+        if (state.artwork == null) {
+            Image(
+                provider = ImageProvider(R.drawable.material_icon_music_note),
+                contentDescription = AppStrings.ArtworkOfX(description),
+                colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurfaceVariant),
+                modifier = GlanceModifier.size(WidgetDimens.ArtworkPlaceholderSize),
             )
+        }
+        Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
+            WidgetArtwork(state.artwork, description, GlanceModifier.fillMaxSize())
             Box(modifier = GlanceModifier.padding(WidgetDimens.ContentPadding)) {
                 PlayPauseButton(state)
             }

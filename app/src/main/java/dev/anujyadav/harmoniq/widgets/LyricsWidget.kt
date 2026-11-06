@@ -136,7 +136,8 @@ private fun SyncedLines(content: LyricsWidgetContent) {
         text = content.current ?: AppStrings.LyricsPause,
         maxLines = LyricsWidgetText.CURRENT_MAX_LINES,
         style = TextStyle(
-            color = GlanceTheme.colors.primary,
+            // not the accent color, which can be too pale to read on a light surface
+            color = GlanceTheme.colors.onSurface,
             fontSize = LyricsWidgetText.CurrentFontSize,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,

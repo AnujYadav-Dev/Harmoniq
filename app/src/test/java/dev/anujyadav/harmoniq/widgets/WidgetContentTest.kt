@@ -27,12 +27,12 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class WidgetContentTest {
     private val application = ApplicationProvider.getApplicationContext<HarmoniqApplication>()
-    private val bar = DpSize(250.dp, 40.dp)
-    private val narrowBar = DpSize(180.dp, 40.dp)
-    private val full = DpSize(250.dp, 110.dp)
+    private val bar = DpSize(280.dp, 56.dp)
+    private val narrowBar = DpSize(180.dp, 56.dp)
+    private val full = DpSize(280.dp, 110.dp)
     private val square = DpSize(110.dp, 110.dp)
-    private val twoByOne = DpSize(110.dp, 40.dp)
-    private val oneByOne = DpSize(40.dp, 40.dp)
+    private val twoByOne = DpSize(110.dp, 56.dp)
+    private val oneByOne = DpSize(56.dp, 56.dp)
 
     private val song = PlaybackSnapshot.Item("primary:Music/a.mp3", "A song", "An artist")
     private val played = PlaybackSnapshot(song = song, positionMs = 30_000L, durationMs = 60_000L)
@@ -159,6 +159,22 @@ class WidgetContentTest {
         button(AppStrings.ArtworkOfX("A song")).assertExists()
         assertSends(AppStrings.Play, PlaybackCommand.Resume)
         onNode(hasTextEqualTo("A song")).assertDoesNotExist()
+    }
+
+    @Test
+    fun albumArtWithNoImageShowsAPlaceholderThatDescribesItself() = runGlanceAppWidgetUnitTest {
+        setAppWidgetSize(square)
+        setContext(application)
+        provideComposable { AlbumArtContent(state().copy(artwork = null)) }
+        button(AppStrings.ArtworkOfX("A song")).assertExists()
+        assertSends(AppStrings.Play, PlaybackCommand.Resume)
+    }
+
+    @Test
+    fun aNarrowBarGivesTheArtworksRoomToTheSong() {
+        player(narrowBar, state()) { button(AppStrings.ArtworkOfX("A song")).assertDoesNotExist() }
+        player(bar, state()) { button(AppStrings.ArtworkOfX("A song")).assertExists() }
+        player(full, state()) { button(AppStrings.ArtworkOfX("A song")).assertExists() }
     }
 
     @Test

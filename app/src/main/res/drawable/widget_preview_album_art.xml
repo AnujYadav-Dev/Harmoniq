@@ -4,6 +4,6 @@
     android:height="110dp"
     android:viewportWidth="110"
     android:viewportHeight="110">
-    <path android:fillColor="#FF4A4A57" android:pathData="M0,0h110v110h-110z" />
-    <path android:fillColor="#FFB9A7F5" android:pathData="M66,84a18,18 0 1,0 36,0a18,18 0 1,0 -36,0" />
+    <path android:fillColor="@color/widget_preview_art" android:pathData="M0,0h110v110h-110z" />
+    <path android:fillColor="@color/widget_preview_primary" android:pathData="M66,84a18,18 0 1,0 36,0a18,18 0 1,0 -36,0" />
 </vector>

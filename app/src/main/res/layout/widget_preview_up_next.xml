@@ -10,7 +10,7 @@
         android:layout_height="wrap_content"
         android:padding="4dp"
         android:text="@string/widget_preview_up_next"
-        android:textColor="#FFFFFFFF"
+        android:textColor="@color/widget_preview_on_surface"
         android:textSize="14sp" />
     <LinearLayout
         android:layout_width="match_parent"
@@ -29,14 +29,14 @@
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:text="@string/widget_preview_song"
-                android:textColor="#FFFFFFFF"
+                android:textColor="@color/widget_preview_on_surface"
                 android:textSize="14sp" />
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:text="@string/widget_preview_artist"
-                android:textColor="#FF9A9AA5"
+                android:textColor="@color/widget_preview_on_surface_variant"
                 android:textSize="12sp" />
         </LinearLayout>
     </LinearLayout>
@@ -57,14 +57,14 @@
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:text="@string/widget_preview_song"
-                android:textColor="#FFFFFFFF"
+                android:textColor="@color/widget_preview_on_surface"
                 android:textSize="14sp" />
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:text="@string/widget_preview_artist"
-                android:textColor="#FF9A9AA5"
+                android:textColor="@color/widget_preview_on_surface_variant"
                 android:textSize="12sp" />
         </LinearLayout>
     </LinearLayout>
@@ -85,14 +85,14 @@
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:text="@string/widget_preview_song"
-                android:textColor="#FFFFFFFF"
+                android:textColor="@color/widget_preview_on_surface"
                 android:textSize="14sp" />
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:maxLines="1"
                 android:text="@string/widget_preview_artist"
-                android:textColor="#FF9A9AA5"
+                android:textColor="@color/widget_preview_on_surface_variant"
                 android:textSize="12sp" />
         </LinearLayout>
     </LinearLayout>

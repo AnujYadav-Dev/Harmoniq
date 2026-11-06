@@ -3,7 +3,11 @@ package dev.anujyadav.harmoniq.widgets
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Build
+import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.core.graphics.ColorUtils
 import androidx.glance.GlanceTheme
 import androidx.glance.color.ColorProviders
 import androidx.glance.material3.ColorProviders
@@ -37,7 +41,7 @@ internal data class WidgetAppearance(
             themeMode.toColorSchemeMode(isSystemDark),
             useMaterialYou,
             primaryColorName,
-        )
+        ).forWidgets()
         return ColorProviders(light = scheme(false), dark = scheme(true))
     }
 
@@ -68,6 +72,25 @@ internal data class WidgetAppearance(
             awaitClose { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
         }.distinctUntilChanged()
     }
+}
+
+private const val MIN_ICON_CONTRAST = 3.0
+
+internal fun contrastOf(front: Color, back: Color) =
+    ColorUtils.calculateContrast(front.toArgb(), back.toArgb())
+
+/**
+ * An icon in a pale accent color is hard to see on a light surface, as is one on a button of that
+ * color. Inside the app these sit among much else, on a widget they are all there is, so here
+ * the accent turns to its darker shade and the icon to whatever can be seen on it.
+ */
+internal fun ColorScheme.forWidgets(): ColorScheme {
+    val accent = if (contrastOf(primary, surface) >= MIN_ICON_CONTRAST) primary else onSurface
+    val onAccent = when {
+        contrastOf(onPrimary, accent) >= MIN_ICON_CONTRAST -> onPrimary
+        else -> listOf(Color.White, Color.Black).maxBy { contrastOf(it, accent) }
+    }
+    return copy(primary = accent, onPrimary = onAccent)
 }
 
 @Composable

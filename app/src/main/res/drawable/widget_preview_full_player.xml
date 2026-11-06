@@ -4,16 +4,16 @@
     android:height="130dp"
     android:viewportWidth="250"
     android:viewportHeight="130">
-    <path android:fillColor="#FF23232A" android:pathData="M0,0h250v130h-250z" />
-    <path android:fillColor="#FF4A4A57" android:pathData="M8,8h56v56h-56z" />
-    <path android:fillColor="#FFFFFFFF" android:pathData="M72,20h90v8h-90z" />
-    <path android:fillColor="#FF9A9AA5" android:pathData="M72,36h56v6h-56z" />
-    <path android:fillColor="#FF9A9AA5" android:pathData="M220,32a8,8 0 1,0 16,0a8,8 0 1,0 -16,0" />
-    <path android:fillColor="#FF9A9AA5" android:pathData="M8,74h234v4h-234z" />
-    <path android:fillColor="#FFB9A7F5" android:pathData="M8,74h90v4h-90z" />
-    <path android:fillColor="#FF9A9AA5" android:pathData="M16,106a8,8 0 1,0 16,0a8,8 0 1,0 -16,0" />
-    <path android:fillColor="#FF9A9AA5" android:pathData="M76,106a8,8 0 1,0 16,0a8,8 0 1,0 -16,0" />
-    <path android:fillColor="#FFB9A7F5" android:pathData="M109,106a16,16 0 1,0 32,0a16,16 0 1,0 -32,0" />
-    <path android:fillColor="#FF9A9AA5" android:pathData="M158,106a8,8 0 1,0 16,0a8,8 0 1,0 -16,0" />
-    <path android:fillColor="#FF9A9AA5" android:pathData="M218,106a8,8 0 1,0 16,0a8,8 0 1,0 -16,0" />
+    <path android:fillColor="@color/widget_preview_surface" android:pathData="M0,0h250v130h-250z" />
+    <path android:fillColor="@color/widget_preview_art" android:pathData="M8,8h56v56h-56z" />
+    <path android:fillColor="@color/widget_preview_on_surface" android:pathData="M72,20h90v8h-90z" />
+    <path android:fillColor="@color/widget_preview_on_surface_variant" android:pathData="M72,36h56v6h-56z" />
+    <path android:fillColor="@color/widget_preview_on_surface_variant" android:pathData="M220,32a8,8 0 1,0 16,0a8,8 0 1,0 -16,0" />
+    <path android:fillColor="@color/widget_preview_on_surface_variant" android:pathData="M8,74h234v4h-234z" />
+    <path android:fillColor="@color/widget_preview_primary" android:pathData="M8,74h90v4h-90z" />
+    <path android:fillColor="@color/widget_preview_on_surface_variant" android:pathData="M16,106a8,8 0 1,0 16,0a8,8 0 1,0 -16,0" />
+    <path android:fillColor="@color/widget_preview_on_surface_variant" android:pathData="M76,106a8,8 0 1,0 16,0a8,8 0 1,0 -16,0" />
+    <path android:fillColor="@color/widget_preview_primary" android:pathData="M109,106a16,16 0 1,0 32,0a16,16 0 1,0 -32,0" />
+    <path android:fillColor="@color/widget_preview_on_surface_variant" android:pathData="M158,106a8,8 0 1,0 16,0a8,8 0 1,0 -16,0" />
+    <path android:fillColor="@color/widget_preview_on_surface_variant" android:pathData="M218,106a8,8 0 1,0 16,0a8,8 0 1,0 -16,0" />
 </vector>

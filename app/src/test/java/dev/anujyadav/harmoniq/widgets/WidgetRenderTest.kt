@@ -79,7 +79,7 @@ class WidgetRenderTest(useSystemColors: Boolean) {
     private fun renderAll() {
         listOf(PlaybackSnapshot(), played).forEach { snapshot ->
             val state = state(snapshot)
-            listOf(DpSize(180.dp, 40.dp), DpSize(250.dp, 40.dp), DpSize(250.dp, 110.dp), DpSize(400.dp, 300.dp))
+            (PlayerSizes.All + DpSize(400.dp, 300.dp))
                 .forEach { size -> assertNotNull(inflate(render(size) { PlayerContent(state) })) }
             assertNotNull(inflate(render(DpSize(110.dp, 110.dp)) { AlbumArtContent(state) }))
             listOf(
@@ -90,7 +90,7 @@ class WidgetRenderTest(useSystemColors: Boolean) {
                 LyricsWidgetContent(LyricsWidgetContent.Kind.Synced, "A song"),
             ).forEach { content ->
                 val lyrics = LyricsWidgetState(content, isEnabled = true, appearance)
-                assertNotNull(inflate(render(DpSize(250.dp, 110.dp)) { LyricsContent(lyrics) }))
+                assertNotNull(inflate(render(DpSize(180.dp, 110.dp)) { LyricsContent(lyrics) }))
             }
             val listSize = DpSize(250.dp, 180.dp)
             val full = state(
@@ -101,11 +101,13 @@ class WidgetRenderTest(useSystemColors: Boolean) {
                 )
             )
             listOf(state, full).forEach { listState ->
-                assertNotNull(inflate(render(listSize) { PlaylistShortcutsContent(listState) }))
+                LibraryWidgetDimens.PlaylistSizes.forEach { size ->
+                    assertNotNull(inflate(render(size) { PlaylistShortcutsContent(listState) }))
+                }
                 assertNotNull(inflate(render(listSize) { UpNextContent(listState) }))
                 assertNotNull(inflate(render(listSize) { SuggestedContent(listState) }))
             }
-            listOf(DpSize(40.dp, 40.dp), DpSize(110.dp, 40.dp))
+            QuickActionSizes.All
                 .forEach { size -> assertNotNull(inflate(render(size) { QuickActionsContent(state) })) }
         }
     }
@@ -125,10 +127,10 @@ class WidgetRenderTest(useSystemColors: Boolean) {
     @Test
     @Config(sdk = [34])
     fun buttonsBecomeImmutableForegroundIntentsThatKeepTheirCommand() {
-        val view = inflate(render(DpSize(250.dp, 40.dp)) { PlayerContent(state()) })
+        val view = inflate(render(PlayerSizes.WideBar) { PlayerContent(state()) })
         val next = view.find(AppStrings.Next)
         assertNotNull(next)
-        // Glance puts the click on a wrapper around the icon, which is the whole 40dp target
+        // Glance puts the click on a wrapper around the icon, which is the whole touch target
         var clickable: View? = next
         while (clickable != null && !clickable.hasOnClickListeners()) {
             clickable = clickable.parent as? View

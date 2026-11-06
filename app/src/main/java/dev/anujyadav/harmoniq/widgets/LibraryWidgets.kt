@@ -1,6 +1,7 @@
 package dev.anujyadav.harmoniq.widgets
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.glance.ColorFilter
@@ -9,6 +10,7 @@ import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
+import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.cornerRadius
@@ -33,14 +35,22 @@ import dev.anujyadav.harmoniq.services.playback.PlaybackCommand
 import dev.anujyadav.harmoniq.services.playback.PlaybackSnapshot
 import dev.anujyadav.harmoniq.utils.AppStrings
 
-private object LibraryWidgetDimens {
+internal object LibraryWidgetDimens {
     val HeaderPadding = 4.dp
     val RowPadding = 6.dp
     val RowSpacing = 4.dp
     val RowRadius = 12.dp
     val IconSize = 20.dp
     val Sizes = setOf(DpSize(180.dp, 110.dp))
-    const val PLAYLIST_COLUMNS = 2
+    val PlaylistSizeOneColumn = DpSize(180.dp, 110.dp)
+    val PlaylistSizeTwoColumns = DpSize(250.dp, 110.dp)
+    val PlaylistSizes = setOf(PlaylistSizeOneColumn, PlaylistSizeTwoColumns)
+}
+
+/** Two tiles side by side leave a narrow widget no room for a playlist's name. */
+internal fun playlistColumns(widgetWidth: Dp) = when {
+    widgetWidth >= LibraryWidgetDimens.PlaylistSizeTwoColumns.width -> 2
+    else -> 1
 }
 
 /*
@@ -48,7 +58,7 @@ private object LibraryWidgetDimens {
  * of what Android lets a widget send, on every update.
  */
 internal class PlaylistShortcutsWidget : PlaybackWidget(artworkSizeDp = null) {
-    override val sizes get() = LibraryWidgetDimens.Sizes
+    override val sizes get() = LibraryWidgetDimens.PlaylistSizes
 
     @Composable
     override fun Content(state: PlaybackWidgetState) = PlaylistShortcutsContent(state)
@@ -89,10 +99,13 @@ private fun LibraryWidgetFrame(
     WidgetRoot {
         Column(modifier = GlanceModifier.fillMaxSize().padding(WidgetDimens.ContentPadding)) {
             Row(
-                modifier = GlanceModifier.fillMaxWidth().padding(LibraryWidgetDimens.HeaderPadding),
+                modifier = GlanceModifier.fillMaxWidth().padding(horizontal = LibraryWidgetDimens.HeaderPadding),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                WidgetTitle(title, GlanceModifier.defaultWeight())
+                WidgetTitle(
+                    title,
+                    GlanceModifier.defaultWeight().padding(vertical = LibraryWidgetDimens.HeaderPadding),
+                )
                 trailing()
             }
             Box(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {
@@ -112,10 +125,20 @@ private fun EmptyMessage(message: String) {
 private const val EMPTY_MESSAGE_MAX_LINES = 3
 
 @Composable
-private fun CommandRow(command: PlaybackCommand, content: @Composable RowScope.() -> Unit) {
+private fun CommandRow(
+    command: PlaybackCommand,
+    sideGap: Dp = 0.dp,
+    content: @Composable RowScope.() -> Unit,
+) {
     val context = LocalContext.current
     // the gap between rows is what's outside of the padding, so taps can't land on the wrong one
-    Box(modifier = GlanceModifier.fillMaxWidth().padding(bottom = LibraryWidgetDimens.RowSpacing)) {
+    Box(
+        modifier = GlanceModifier.fillMaxWidth().padding(
+            start = sideGap,
+            end = sideGap,
+            bottom = LibraryWidgetDimens.RowSpacing,
+        ),
+    ) {
         Row(
             modifier = GlanceModifier
                 .fillMaxWidth()
@@ -142,10 +165,11 @@ private fun SongRow(item: PlaybackSnapshot.Item, command: PlaybackCommand) {
 @Composable
 internal fun PlaylistShortcutsContent(state: PlaybackWidgetState) {
     val snapshot = state.snapshot
+    val columns = playlistColumns(LocalSize.current.width)
     LibraryWidgetFrame(AppStrings.Playlists) {
         when {
             snapshot.playlists.isNotEmpty() -> LazyVerticalGrid(
-                gridCells = GridCells.Fixed(LibraryWidgetDimens.PLAYLIST_COLUMNS),
+                gridCells = GridCells.Fixed(columns),
                 modifier = GlanceModifier.fillMaxSize(),
             ) {
                 items(snapshot.playlists, itemId = { it.id.hashCode().toLong() }) { playlist ->
@@ -162,7 +186,7 @@ internal fun PlaylistShortcutsContent(state: PlaybackWidgetState) {
 
 @Composable
 private fun PlaylistTile(playlist: PlaybackSnapshot.PlaylistItem) {
-    CommandRow(PlaybackCommand.PlayPlaylist(playlist.id)) {
+    CommandRow(PlaybackCommand.PlayPlaylist(playlist.id), sideGap = LibraryWidgetDimens.RowSpacing / 2) {
         Image(
             provider = ImageProvider(R.drawable.material_icon_music_note),
             contentDescription = null,

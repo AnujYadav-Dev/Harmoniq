@@ -58,7 +58,8 @@ harmoniq/
 ├── HarmoniqActivity.kt          # Single activity: splash screen, theme session, sets Compose content
 ├── ErrorActivity.kt         # Shown by the global uncaught-exception handler (crash screen)
 ├── ActivityIgnition.kt      # ViewModel that keeps the splash screen up until the first frame
-├── Symphony.kt              # App-wide ViewModel; owns settings, database, groove, radio; lifecycle hooks
+├── HarmoniqApplication.kt    # Owns Symphony, created on first need; crash handler
+├── Symphony.kt              # Owns settings, database, groove, radio; lifecycle hooks
 ├── services/
 │   ├── Settings.kt          # All user preferences (SharedPreferences-backed typed entries)
 │   ├── AppMeta.kt           # App name, version (from BuildConfig), GitHub release check
@@ -66,9 +67,12 @@ harmoniq/
 │   ├── database/            # Room databases (CacheDatabase v2, PersistentDatabase v1) + stores
 │   ├── groove/              # Media library: scanning (MediaExposer), repositories, models
 │   ├── radio/               # Playback engine: player, queue, focus, media session, notification service
+│   ├── playback/            # Commands from outside the app, and what widgets draw from
 │   └── globalsearch/        # Global Search: harmoniq-server client, config, download worker, watchlist/ (Room)
 │       ├── api/             # HarmoniqServerApi (OkHttp), DTOs, ServerError + error codes
 │       └── download/        # ServerDownloadWorker (WorkManager), pipeline, saver, records, notifications
+├── widgets/                 # Home screen widgets (Glance)
+├── shortcuts/               # Launcher shortcuts, links into the app, Quick Settings tile
 ├── ui/
 │   ├── view/                # Screens (MainShell, NowPlaying, Settings, Library/Home/Search tabs…)
 │   │   ├── globalsearch/    # Global results, online rows + actions, playlist/preview sheet, Watch List, player, downloads
@@ -81,12 +85,13 @@ harmoniq/
 
 ### Key concepts
 
-- **`Symphony`** is the central `AndroidViewModel`. Everything (settings, groove, radio, database) hangs off it, and UI code reaches it through `ViewContext.symphony`.
+- **`Symphony`** is the central class, owned by `HarmoniqApplication` and created on first need, so it can exist with no activity open. Everything (settings, groove, radio, database) hangs off it, and UI code reaches it through `ViewContext.symphony`.
 - **Groove** is the media library. `MediaExposer` scans the folders the user picked (Storage Access Framework tree URIs) and caches song metadata in the Room `CacheDatabase`.
 - **Radio** is the playback engine. It wraps `android.media.MediaPlayer` (`RadioPlayer`), manages the queue (`RadioQueue`), and runs `RadioNotificationService` as a `mediaPlayback` foreground service.
 - **Global Search** (`services/globalsearch/`) talks to [harmoniq-server](https://github.com/AnujYadav-Dev/Harmoniq-server/blob/main/README.md). `GlobalSearch` hangs off `Symphony` for the UI; downloads run in `ServerDownloadWorker` (WorkManager, `dataSync` foreground work), which builds its own API client from a plain `Context` because it can run without `Symphony`. Saved songs go to `Download/Harmoniq` and reach the library through a normal `groove.fetch()` rescan. The feature exists only in builds that have a server URL and token, and the user can turn it off (**Settings → Global search**). Songs saved for later live in the **Watch List** (Room table `watch_list`, `PersistentDatabase` v2). See [Global Search server](09-global-search-server.md).
 - **Navigation** uses type-safe Compose Navigation routes (`@Serializable` objects/classes, e.g. `SettingsViewRoute`), declared in `ui/view/Base.kt`.
-- **Strings** are plain constants in `utils/AppStrings.kt`. The app is English-only and does not use `strings.xml` for UI text (only `app_name`).
+- **Strings** are plain constants in `utils/AppStrings.kt`. The app is English-only and does not use `strings.xml` for UI text. That file holds only what Android reads without running the app: `app_name` and the widget picker's labels and descriptions.
+- **Widgets** draw from a saved snapshot and send commands to `RadioNotificationService`. See [Widgets & background playback](11-widgets-and-background-playback.md).
 
 ## Important files
 

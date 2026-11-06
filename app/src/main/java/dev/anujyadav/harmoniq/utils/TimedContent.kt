@@ -6,7 +6,8 @@ data class TimedContent(val pairs: List<Pair<Long, String>>) {
     val isSynced: Boolean get() = pairs.firstOrNull()?.first != pairs.lastOrNull()?.first
 
     companion object {
-        val lrcLineSeparatorRegex = Regex("""\n|\r|\r\n""")
+        // "\r\n" comes first: alternatives are tried in order, and "\r" alone would match it too
+        val lrcLineSeparatorRegex = Regex("""\r\n|\n|\r""")
         val lrcLineFilterRegex = Regex("""^\[\s*(\d+):(\d+)\.(\d+)?\s*](.*)""")
 
         private const val MILLIS_DIGITS = 3

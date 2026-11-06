@@ -42,6 +42,20 @@ class TimedContentTest {
     }
 
     @Test
+    fun everyLineEndingSplitsOnce() {
+        val expected = listOf(1_000L to "one", 2_000L to "two")
+        listOf("\n", "\r\n", "\r").forEach { ending ->
+            assertEquals(expected, TimedContent.fromLyrics("[00:01.00]one$ending[00:02.00]two").pairs)
+        }
+    }
+
+    @Test
+    fun blankLinesAreKept() {
+        val pairs = TimedContent.fromLyrics("[00:01.00]one\r\n\r\n[00:02.00]two").pairs
+        assertEquals(listOf(1_000L to "one", 1_000L to "", 2_000L to "two"), pairs)
+    }
+
+    @Test
     fun plainLyricsAreNotSynced() {
         assertFalse(TimedContent.fromLyrics("first line\nsecond line").isSynced)
     }

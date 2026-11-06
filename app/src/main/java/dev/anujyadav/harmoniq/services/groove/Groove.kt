@@ -15,6 +15,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 class Groove(private val symphony: Symphony) : Symphony.Hooks {
     enum class Kind {
@@ -128,6 +129,27 @@ class Groove(private val symphony: Symphony) : Symphony.Hooks {
         song.remove(removed)
     }
 
+    /**
+     * Makes these songs known ahead of the scan, from what the last scan saved. The scan then
+     * treats them like any song it has seen before, see [onSongScanned], and takes them out if
+     * their files are gone.
+     */
+    internal suspend fun loadFromSongCache(songIds: Set<String>) {
+        val cached = symphony.database.songCache.entriesPathMapped().values
+            .filter { songIds.contains(it.id) }
+        withContext(Dispatchers.Main) {
+            // whatever the scan already found is newer
+            cached.filter { !song.pathCache.containsKey(it.path) }.forEach { onSongScanned(it) }
+        }
+    }
+
+    // nothing is reset, whatever's playing or open isn't affected
+    private fun rescanIfIdle() {
+        if (readyDeferred.isCompleted && !exposer.isUpdating.value) {
+            fetch(FetchOptions())
+        }
+    }
+
     override fun onSymphonyReady() {
         coroutineScope.launch {
             refreshMutex.withLock {
@@ -135,5 +157,10 @@ class Groove(private val symphony: Symphony) : Symphony.Hooks {
             }
             readyDeferred.complete(true)
         }
+    }
+
+    // the library may have changed while the app wasn't open, no scan notices that by itself
+    override fun onSymphonyActivityReopen() {
+        rescanIfIdle()
     }
 }

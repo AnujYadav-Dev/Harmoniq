@@ -8,41 +8,30 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.Lifecycle
-import dev.anujyadav.harmoniq.services.radio.Radio
 import dev.anujyadav.harmoniq.ui.theme.SplashTheme
 import dev.anujyadav.harmoniq.ui.view.BaseView
-import dev.anujyadav.harmoniq.utils.EventUnsubscribeFn
-import dev.anujyadav.harmoniq.utils.Logger
 
 class HarmoniqActivity : ComponentActivity() {
+    private val ignition: ActivityIgnition by viewModels()
     private var gSymphony: Symphony? = null
-    private var unsubscribeFromRadio: EventUnsubscribeFn? = null
+    private val closeApp = { finish() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // must run before super.onCreate, it also swaps in the post-splash theme
-        val ignition: ActivityIgnition by viewModels()
         installSplashScreen().setKeepOnScreenCondition { !ignition.ready.value }
 
         super.onCreate(savedInstanceState)
 
-        Thread.setDefaultUncaughtExceptionHandler { _, err ->
-            ignition.emitReady()
-            Logger.error("HarmoniqActivity", "uncaught exception", err)
-            ErrorActivity.start(this, err)
-            finish()
-        }
-
-        val symphony: Symphony by viewModels()
+        val symphony = (application as HarmoniqApplication).symphony
         symphony.permission.handle(this)
         gSymphony = symphony
-        symphony.emitActivityReady()
+        symphony.emitActivityReady(isFreshStart = savedInstanceState == null)
 
         // only on a fresh start, not when the activity is recreated from saved state
         if (savedInstanceState == null) {
             SplashTheme.startSession(this, symphony.settings)
         }
-        attachHandlers()
+        symphony.closeApp = closeApp
 
         enableEdgeToEdge()
         setContent {
@@ -65,34 +54,31 @@ class HarmoniqActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         if (!isChangingConfigurations) {
-            applyChosenAppIcon()
+            gSymphony?.applyChosenAppIcon()
         }
     }
 
     override fun onDestroy() {
-        unsubscribeFromRadio?.invoke()
         super.onDestroy()
-        gSymphony?.emitActivityDestroy()
-    }
-
-    private fun attachHandlers() {
-        gSymphony?.closeApp = {
-            finish()
-        }
-        // stopped from the notification while away: there may be no "leaving the app" after this
-        unsubscribeFromRadio = gSymphony?.radio?.onUpdate?.subscribe { event ->
-            if (event == Radio.Events.Player.Ended && !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                applyChosenAppIcon()
-            }
-        }
-    }
-
-    // waits for a moment with no music, as switching closes the app, see AppIcon.applyIfNeeded
-    private fun applyChosenAppIcon() {
         gSymphony?.let {
-            if (!it.radio.isPlaying) {
-                it.settings.appIcon.value.applyIfNeeded(applicationContext)
+            // Symphony lives on: it must not keep this activity alive through these
+            if (it.closeApp === closeApp) {
+                it.closeApp = null
+            }
+            it.emitActivityDestroy()
+            // finished for good, like going back on older Android: music keeps going, but
+            // paused music has nothing left to bring it back apart from opening the app again
+            if (isFinishing) {
+                it.radio.stopIfIdle()
             }
         }
+        gSymphony = null
+    }
+
+    /** See [AppCrashHandler], the error screen takes over from here. */
+    internal fun onUncaughtCrash() {
+        gSymphony = null
+        ignition.emitReady()
+        finish()
     }
 }

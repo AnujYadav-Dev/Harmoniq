@@ -10,7 +10,10 @@ import dev.anujyadav.harmoniq.utils.Logger
 import java.time.Instant
 import java.util.Date
 import java.util.Timer
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class Radio(private val symphony: Symphony) : Symphony.Hooks {
     sealed class Events {
@@ -81,9 +84,15 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
     var sleepTimer: SleepTimer? = null
     var pauseOnCurrentSongEnd = false
 
+    // what the current player starts from, it can't report a position until it's prepared
+    private var preparingStartPosition = 0L
+    private var startWhenPrepared = false
+    private val saveQueue = Runnable { saveCurrentQueue() }
+
     init {
         nativeReceiver.start()
         onUpdate.subscribe(this::watchQueueUpdates)
+        onUpdate.subscribe(this::scheduleQueueSave)
     }
 
     fun ready() {
@@ -94,6 +103,7 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
 
     fun destroy() {
         stop()
+        mainHandler.removeCallbacks(saveQueue)
         observatory.destroy()
         session.destroy()
         nativeReceiver.destroy()
@@ -107,9 +117,15 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
 
     fun play(options: PlayOptions) {
         stopCurrentSong()
-        val song = queue.getSongIdAt(options.index)?.let { symphony.groove.song.get(it) }
+        preparingStartPosition = options.startPosition ?: 0L
+        startWhenPrepared = false
+        val songId = queue.getSongIdAt(options.index)
+        val song = songId?.let { symphony.groove.song.get(it) }
         if (song == null) {
-            onSongFinish(SongFinishSource.Exception)
+            when (songId) {
+                null -> onSongFinish(SongFinishSource.Exception)
+                else -> removeMissingSong(options.index, songId)
+            }
             return
         }
         try {
@@ -133,9 +149,12 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
                 }
                 setSpeed(persistedSpeed, true)
                 setPitch(persistedPitch, true)
-                if (options.autostart) {
+                if (options.autostart || startWhenPrepared) {
+                    startWhenPrepared = false
                     start()
                 }
+                // the position is known now, what was saved while preparing is an estimate
+                scheduleQueueSave()
             }
             player!!.setOnPlaybackPositionListener {
                 onPlaybackPositionUpdate.dispatch(it)
@@ -179,6 +198,17 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
         }
     }
 
+    // a rescan took it out of the library. Removing the current song plays the next one, so it
+    // is posted like above, and staying on it would have the next attempt end up here again
+    private fun removeMissingSong(index: Int, songId: String) {
+        queue.currentSongIndex = index
+        mainHandler.post {
+            if (queue.getSongIdAt(index) == songId) {
+                queue.remove(index)
+            }
+        }
+    }
+
     private fun dispatchPlaybackError(song: Song) {
         val reason = when {
             DocumentFileX.exists(symphony.applicationContext, song.uri) -> PlaybackError.Reason.PlaybackFailed
@@ -211,6 +241,15 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
     }
 
     fun resume() = start()
+
+    /** [resume], for when the player may still be preparing: it starts as soon as it can. */
+    fun resumeWhenReady() {
+        when {
+            isPlaying -> {}
+            hasPlayer -> resume()
+            else -> startWhenPrepared = true
+        }
+    }
 
     private fun start() {
         player?.let {
@@ -259,12 +298,27 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
     }
 
     fun stop(ended: Boolean = true) {
+        // not ended: another queue is about to replace this one
+        if (ended) {
+            saveCurrentQueue()
+        }
         stopCurrentSong()
+        startWhenPrepared = false
         queue.reset()
         clearSleepTimer()
         persistedSpeed = RadioPlayer.DEFAULT_SPEED
         persistedPitch = RadioPlayer.DEFAULT_PITCH
         if (ended) onUpdate.dispatch(Events.Player.Ended)
+    }
+
+    /**
+     * For when the user leaves for good: music keeps going, but anything else would only leave
+     * a paused notification behind. The queue comes back when the app is opened again.
+     */
+    fun stopIfIdle() {
+        if (!isPlaying && !startWhenPrepared) {
+            stop()
+        }
     }
 
     fun jumpTo(index: Int) = play(PlayOptions(index = index))
@@ -320,13 +374,7 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
         val timer = Timer()
         timer.schedule(
             kotlin.concurrent.timerTask {
-                val shouldQuit = sleepTimer?.quitOnEnd ?: quitOnEnd
-                clearSleepTimer()
-                pause(forceFade = true) {
-                    if (shouldQuit) {
-                        symphony.closeApp?.invoke()
-                    }
-                }
+                mainHandler.post { onSleepTimerEnd(quitOnEnd) }
             },
             Date.from(Instant.ofEpochMilli(endsAt)),
         )
@@ -338,6 +386,26 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
             quitOnEnd = quitOnEnd,
         )
         onUpdate.dispatch(Events.QueueOption.SleepTimerChanged)
+    }
+
+    internal fun onSleepTimerEnd(quitOnEnd: Boolean) {
+        val shouldQuit = sleepTimer?.quitOnEnd ?: quitOnEnd
+        clearSleepTimer()
+        when {
+            isPlaying -> pause(forceFade = true) {
+                if (shouldQuit) {
+                    mainHandler.post { quit() }
+                }
+            }
+
+            shouldQuit -> quit()
+        }
+    }
+
+    // works with no activity around, closeApp is only there for when one is
+    private fun quit() {
+        stop()
+        symphony.closeApp?.invoke()
     }
 
     fun clearSleepTimer() {
@@ -416,11 +484,25 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
     private fun attachGrooveListener() {
         symphony.groove.coroutineScope.launch {
             symphony.groove.readyDeferred.await()
+            withContext(Dispatchers.Main) {
+                restorePreviousQueue()
+            }
+        }
+    }
+
+    /**
+     * Restores without waiting for the scan, which can take a while with a large library: the
+     * songs of a saved queue are in the song cache, unless the cache has been cleared since.
+     */
+    internal suspend fun restoreQueueFromSongCache() {
+        val previous = symphony.settings.previousSongQueue.value ?: return
+        symphony.groove.loadFromSongCache(previous.originalQueue.toSet())
+        withContext(Dispatchers.Main) {
             restorePreviousQueue()
         }
     }
 
-    private fun restorePreviousQueue() {
+    internal fun restorePreviousQueue() {
         if (!queue.isEmpty()) {
             return
         }
@@ -467,8 +549,28 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
         prepareNextPlayer()
     }
 
+    // process death gives no warning, so anything worth coming back to gets saved shortly after
+    private fun scheduleQueueSave(event: Events) {
+        if (event is Events.Player || event is Events.Queue || event == Events.QueueOption.ShuffleModeChanged) {
+            scheduleQueueSave()
+        }
+    }
+
+    private fun scheduleQueueSave() {
+        mainHandler.removeCallbacks(saveQueue)
+        mainHandler.postDelayed(saveQueue, QUEUE_SAVE_DEBOUNCE.inWholeMilliseconds)
+    }
+
     override fun onSymphonyReady() {
         ready()
+    }
+
+    // a stop empties the queue for as long as the process lives, which used to end with the
+    // activity: opening the app brings the last queue back, as it does from a new process
+    override fun onSymphonyActivityReopen() {
+        if (queue.isEmpty()) {
+            attachGrooveListener()
+        }
     }
 
     override fun onSymphonyDestroy() {
@@ -485,14 +587,20 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
     }
 
     private fun saveCurrentQueue() {
+        mainHandler.removeCallbacks(saveQueue)
         if (queue.isEmpty()) {
             return
         }
         symphony.settings.previousSongQueue.setValue(
             RadioQueue.Serialized.create(
                 queue = queue,
-                playbackPosition = currentPlaybackPosition ?: RadioPlayer.PlaybackPosition.zero
+                playbackPosition = currentPlaybackPosition
+                    ?: RadioPlayer.PlaybackPosition.zero.copy(played = preparingStartPosition)
             )
         )
+    }
+
+    internal companion object {
+        val QUEUE_SAVE_DEBOUNCE = 2.seconds
     }
 }

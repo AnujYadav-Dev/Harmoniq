@@ -223,6 +223,8 @@ class RadioPlayer(val symphony: Symphony, val id: String, val uri: Uri) {
     }
 
     private fun createDurationTimer() {
+        // both preparing and starting get here, a replaced timer would tick forever
+        destroyDurationTimer()
         playbackPositionUpdater = kotlin.concurrent.timer(period = 100L) {
             emitPlaybackPosition()
         }

@@ -148,6 +148,8 @@ android {
         unitTests.isReturnDefaultValues = true
         unitTests.all {
             it.useJUnitPlatform()
+            // Robolectric shadows are not tests, and can only be loaded inside its sandbox
+            it.exclude("**/Shadow*.class")
         }
     }
 

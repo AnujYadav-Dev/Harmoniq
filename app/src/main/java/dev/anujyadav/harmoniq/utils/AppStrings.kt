@@ -403,6 +403,11 @@ object AppStrings {
     const val AppIconClassic = "Classic"
     const val AppIconUpdating = "The new icon appears after you leave the app with no music playing"
     const val WaitingForLibrary = "Not in your library yet"
+    const val CommandNoMediaFolders = "Open Harmoniq and choose a music folder to start playing"
+    const val CommandLibraryStillLoading = "Your library is still loading, try again in a moment"
+    const val CommandEmptyLibrary = "No songs found in your music folders"
+    const val CommandNothingToResume = "Nothing to continue yet, open Harmoniq and pick a song"
+    const val CommandPlaybackFailed = "Couldn't play your last songs, they may have been moved or deleted"
     const val GlobalSearchUnreachable =
         "Global Search can't reach its server right now. Your library, downloads and Watch List still work."
     const val ServerSettings = "Server settings"

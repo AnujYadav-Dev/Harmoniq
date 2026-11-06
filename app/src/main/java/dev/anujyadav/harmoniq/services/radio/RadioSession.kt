@@ -201,6 +201,7 @@ class RadioSession(val symphony: Symphony) {
     fun destroy() {
         actionStateUpdates?.cancel()
         cancel()
+        notification.destroy()
         symphony.applicationContext.unregisterReceiver(receiver)
     }
 

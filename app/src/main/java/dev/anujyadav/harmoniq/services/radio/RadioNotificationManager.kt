@@ -1,48 +1,25 @@
 ﻿package dev.anujyadav.harmoniq.services.radio
 
 import android.app.Notification
-import android.content.Intent
-import android.content.pm.ServiceInfo
-import android.os.Build
-import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.app.ServiceCompat
-import dev.anujyadav.harmoniq.R
 import dev.anujyadav.harmoniq.Symphony
+import dev.anujyadav.harmoniq.utils.EventUnsubscribeFn
 
 class RadioNotificationManager(val symphony: Symphony) {
     private var manager = NotificationManagerCompat.from(symphony.applicationContext)
-    private var lastNotification: Notification? = null
+    private var isServiceStarting = false
+    private var unsubscribeFromService: EventUnsubscribeFn? = null
 
-    enum class State {
-        PREPARING,
-        READY,
-        DESTROYED,
-    }
-
-    private var state = State.DESTROYED
     private val service: RadioNotificationService?
         get() = RadioNotificationService.instance
-    private val hasService: Boolean
-        get() = state == State.READY && service != null
 
     fun prepare() {
-        manager.createNotificationChannel(
-            NotificationChannelCompat.Builder(
-                RadioNotification.CHANNEL_ID,
-                NotificationManagerCompat.IMPORTANCE_LOW,
-            ).run {
-                setName(symphony.applicationContext.getString(R.string.app_name))
-                setLightsEnabled(false)
-                setVibrationEnabled(false)
-                setShowBadge(false)
-                build()
-            }
-        )
-        RadioNotificationService.events.subscribe {
+        RadioNotification.createChannel(symphony.applicationContext)
+        unsubscribeFromService = RadioNotificationService.events.subscribe {
             when (it) {
                 RadioNotificationService.Event.START -> onServiceStart()
                 RadioNotificationService.Event.STOP -> onServiceStop()
+                RadioNotificationService.Event.TASK_REMOVED -> symphony.radio.stopIfIdle()
             }
         }
     }
@@ -52,10 +29,15 @@ class RadioNotificationManager(val symphony: Symphony) {
         RadioNotificationService.destroy()
     }
 
+    fun destroy() {
+        cancel()
+        unsubscribeFromService?.invoke()
+        unsubscribeFromService = null
+    }
+
     fun notify(notification: Notification) {
-        if (!hasService) {
-            createService()
-            lastNotification = notification
+        if (service == null) {
+            createService(notification)
             return
         }
         try {
@@ -66,38 +48,24 @@ class RadioNotificationManager(val symphony: Symphony) {
     }
 
     private fun destroyNotification() {
-        if (state == State.DESTROYED) {
-            return
-        }
-        state = State.DESTROYED
-        lastNotification = null
+        isServiceStarting = false
+        RadioNotificationService.pendingNotification = null
         manager.cancel(RadioNotification.NOTIFICATION_ID)
     }
 
-    private fun createService() {
-        if (hasService || state == State.PREPARING) {
+    private fun createService(notification: Notification) {
+        RadioNotificationService.pendingNotification = notification
+        if (isServiceStarting) {
             return
         }
-        val intent = Intent(symphony.applicationContext, RadioNotificationService::class.java)
-        symphony.applicationContext.startForegroundService(intent)
-        state = State.PREPARING
+        isServiceStarting = RadioNotificationService.start(symphony.applicationContext)
+        if (!isServiceStarting) {
+            RadioNotificationService.pendingNotification = null
+        }
     }
 
     private fun onServiceStart() {
-        state = State.READY
-        lastNotification?.let { notification ->
-            lastNotification = null
-            ServiceCompat.startForeground(
-                service!!,
-                RadioNotification.NOTIFICATION_ID,
-                notification,
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-                } else {
-                    0
-                }
-            )
-        }
+        isServiceStarting = false
     }
 
     private fun onServiceStop() {

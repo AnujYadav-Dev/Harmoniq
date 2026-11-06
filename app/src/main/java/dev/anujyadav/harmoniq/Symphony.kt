@@ -8,6 +8,7 @@ import dev.anujyadav.harmoniq.services.globalsearch.GlobalSearch
 import dev.anujyadav.harmoniq.services.groove.Groove
 import dev.anujyadav.harmoniq.services.playback.PlaybackPublisher
 import dev.anujyadav.harmoniq.services.radio.Radio
+import dev.anujyadav.harmoniq.shortcuts.AppShortcuts
 
 class Symphony(private val application: Application) : Symphony.Hooks {
     interface Hooks {
@@ -74,8 +75,9 @@ class Symphony(private val application: Application) : Symphony.Hooks {
 
     // waits for a moment with no music, as switching closes the app, see AppIcon.applyIfNeeded
     internal fun applyChosenAppIcon() {
-        if (!radio.isPlaying) {
-            settings.appIcon.value.applyIfNeeded(applicationContext)
+        if (!radio.isPlaying && settings.appIcon.value.applyIfNeeded(applicationContext)) {
+            // they hang on the alias that was just disabled, see AppShortcuts.publish
+            AppShortcuts.publish(applicationContext)
         }
     }
 

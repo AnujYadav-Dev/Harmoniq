@@ -1,5 +1,6 @@
 package dev.anujyadav.harmoniq
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -8,13 +9,23 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import dev.anujyadav.harmoniq.services.radio.RadioNotificationService
+import dev.anujyadav.harmoniq.shortcuts.AppDestination
+import dev.anujyadav.harmoniq.shortcuts.AppLink
+import dev.anujyadav.harmoniq.shortcuts.AppShortcuts
 import dev.anujyadav.harmoniq.ui.theme.SplashTheme
 import dev.anujyadav.harmoniq.ui.view.BaseView
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class HarmoniqActivity : ComponentActivity() {
     private val ignition: ActivityIgnition by viewModels()
     private var gSymphony: Symphony? = null
     private val closeApp = { finish() }
+    private val _pendingDestination = MutableStateFlow<AppDestination?>(null)
+
+    /** Somewhere a shortcut asked to go. Whoever goes there calls [onDestinationOpened]. */
+    internal val pendingDestination = _pendingDestination.asStateFlow()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // must run before super.onCreate, it also swaps in the post-splash theme
@@ -30,6 +41,8 @@ class HarmoniqActivity : ComponentActivity() {
         // only on a fresh start, not when the activity is recreated from saved state
         if (savedInstanceState == null) {
             SplashTheme.startSession(this, symphony.settings)
+            AppShortcuts.publish(this)
+            handleLink(intent)
         }
         symphony.closeApp = closeApp
 
@@ -40,6 +53,22 @@ class HarmoniqActivity : ComponentActivity() {
             }
             BaseView(symphony = symphony, activity = this)
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleLink(intent)
+    }
+
+    private fun handleLink(intent: Intent?) {
+        val link = AppLink.fromIntent(intent) ?: return
+        link.command?.let { RadioNotificationService.start(this, it) }
+        link.destination?.let { destination -> _pendingDestination.value = destination }
+    }
+
+    internal fun onDestinationOpened() {
+        _pendingDestination.value = null
     }
 
     override fun onPause() {

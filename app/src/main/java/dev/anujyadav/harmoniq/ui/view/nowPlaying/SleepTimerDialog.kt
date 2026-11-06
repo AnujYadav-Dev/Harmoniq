@@ -41,6 +41,7 @@ import dev.anujyadav.harmoniq.services.radio.Radio
 import dev.anujyadav.harmoniq.ui.components.ScaffoldDialog
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 import dev.anujyadav.harmoniq.utils.AppStrings
+import dev.anujyadav.harmoniq.services.playback.SleepTimerPresets
 import dev.anujyadav.harmoniq.utils.DurationUtils
 import java.time.Duration
 import java.util.Timer
@@ -119,14 +120,6 @@ fun NowPlayingSleepTimerDialog(
     )
 }
 
-private val nowPlayingSleepTimerPresetDurations = listOf(
-    0L to 15L,
-    0L to 30L,
-    1L to 0L,
-    2L to 0L,
-    3L to 0L,
-)
-
 @Composable
 fun NowPlayingSleepTimerSetDialog(
     context: ViewContext,
@@ -162,9 +155,9 @@ fun NowPlayingSleepTimerSetDialog(
                     ),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    nowPlayingSleepTimerPresetDurations.forEach { x ->
-                        val hours = x.first
-                        val minutes = x.second
+                    SleepTimerPresets.all.forEach { x ->
+                        val hours = x.hours
+                        val minutes = x.minutes
                         val shape = RoundedCornerShape(4.dp)
 
                         Text(

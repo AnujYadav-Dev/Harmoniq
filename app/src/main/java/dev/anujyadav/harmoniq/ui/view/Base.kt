@@ -6,6 +6,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +49,7 @@ import dev.anujyadav.harmoniq.ui.view.settings.SwipeActionsSettingsViewRoute
 import dev.anujyadav.harmoniq.ui.components.ProvideSwipeScope
 import dev.anujyadav.harmoniq.ui.components.SongSwipeScope
 import dev.anujyadav.harmoniq.ui.view.navigation.LibraryPill
+import dev.anujyadav.harmoniq.ui.view.navigation.open
 
 @Composable
 fun BaseView(symphony: Symphony, activity: HarmoniqActivity) {
@@ -70,6 +72,8 @@ fun BaseView(symphony: Symphony, activity: HarmoniqActivity) {
         }
         onDispose { unsubscribe() }
     }
+
+    val pendingDestination by activity.pendingDestination.collectAsState()
 
     SymphonyTheme(context) {
         Surface(color = MaterialTheme.colorScheme.background) {
@@ -183,6 +187,14 @@ fun BaseView(symphony: Symphony, activity: HarmoniqActivity) {
                         TreeFullView(context)
                     }
                 }
+            }
+        }
+
+        // here, as the destinations need the graph above
+        LaunchedEffect(pendingDestination) {
+            pendingDestination?.let { destination ->
+                context.open(destination)
+                activity.onDestinationOpened()
             }
         }
 

@@ -15,6 +15,7 @@ import dev.anujyadav.harmoniq.services.groove.repositories.GenreRepository
 import dev.anujyadav.harmoniq.services.groove.repositories.PlaylistRepository
 import dev.anujyadav.harmoniq.services.groove.repositories.SongRepository
 import dev.anujyadav.harmoniq.services.radio.RadioNotificationAction
+import dev.anujyadav.harmoniq.services.playback.SleepTimerPresets
 import dev.anujyadav.harmoniq.services.radio.RadioQueue
 import dev.anujyadav.harmoniq.ui.components.PlaylistAction
 import dev.anujyadav.harmoniq.ui.components.ResponsiveGridColumns
@@ -401,6 +402,7 @@ class Settings(private val symphony: Symphony) {
     val homeShowFavorites = BooleanEntry("home_show_favorites", true)
     val homePlaylistIds = StringListEntry("home_playlist_ids")
     val playlistLastPlayed = StringLongMapEntry("playlist_last_played")
+    val lastSleepTimerMinutes = IntEntry("last_sleep_timer_minutes", SleepTimerPresets.DEFAULT_MINUTES)
     val lastMainTab = EnumEntry("main_last_tab", enumEntries<MainTab>(), MainTab.HOME)
     val songsFilterPattern = NullableStringEntry("songs_filter_pattern")
     val minSongDuration = IntEntry("min_song_duration", 0)

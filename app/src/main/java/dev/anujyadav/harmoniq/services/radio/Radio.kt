@@ -10,6 +10,7 @@ import dev.anujyadav.harmoniq.utils.Logger
 import java.time.Instant
 import java.util.Date
 import java.util.Timer
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -370,6 +371,9 @@ class Radio(private val symphony: Symphony) : Symphony.Hooks {
         duration: Long,
         quitOnEnd: Boolean,
     ) {
+        symphony.settings.lastSleepTimerMinutes.setValue(
+            duration.milliseconds.inWholeMinutes.toInt().coerceAtLeast(1)
+        )
         val endsAt = System.currentTimeMillis() + duration
         val timer = Timer()
         timer.schedule(

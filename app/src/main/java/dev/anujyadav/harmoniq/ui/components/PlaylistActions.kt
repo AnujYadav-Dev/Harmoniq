@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
+import androidx.compose.material.icons.filled.AddToHomeScreen
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
@@ -21,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.vector.ImageVector
 import dev.anujyadav.harmoniq.services.groove.MediaExposer
 import dev.anujyadav.harmoniq.services.groove.Playlist
+import dev.anujyadav.harmoniq.shortcuts.AppShortcuts
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
 import dev.anujyadav.harmoniq.utils.AppStrings
 import dev.anujyadav.harmoniq.utils.Logger
@@ -40,6 +42,7 @@ enum class PlaylistAction {
     PlayNext,
     AddToQueue,
     AddToPlaylist,
+    AddToHomeScreen,
     ManageSongs,
     Details,
     ChangeCover,
@@ -58,6 +61,7 @@ enum class PlaylistAction {
             PlayNext,
             AddToQueue,
             AddToPlaylist,
+            AddToHomeScreen,
             ManageSongs,
             Details,
             ChangeCover,
@@ -75,6 +79,7 @@ fun PlaylistAction.settingsLabel() = when (this) {
     PlaylistAction.PlayNext -> AppStrings.PlayNext
     PlaylistAction.AddToQueue -> AppStrings.AddToQueue
     PlaylistAction.AddToPlaylist -> AppStrings.AddToPlaylist
+    PlaylistAction.AddToHomeScreen -> AppStrings.AddToHomeScreen
     PlaylistAction.ManageSongs -> AppStrings.ManageSongs
     PlaylistAction.Details -> AppStrings.Details
     PlaylistAction.ChangeCover -> AppStrings.ChangeCover
@@ -113,6 +118,7 @@ class PlaylistActions(
         PlaylistAction.PlayNext,
         PlaylistAction.AddToQueue -> Icons.AutoMirrored.Filled.PlaylistPlay
         PlaylistAction.AddToPlaylist, PlaylistAction.ManageSongs -> Icons.AutoMirrored.Filled.PlaylistAdd
+        PlaylistAction.AddToHomeScreen -> Icons.Filled.AddToHomeScreen
         PlaylistAction.Details -> Icons.Filled.Info
         PlaylistAction.ChangeCover -> Icons.Filled.Image
         PlaylistAction.RemoveCover -> Icons.Filled.HideImage
@@ -130,6 +136,7 @@ class PlaylistActions(
             PlaylistAction.ShufflePlay -> play(shuffle = true)
             PlaylistAction.PlayNext -> playNext()
             PlaylistAction.AddToQueue -> addToQueue()
+            PlaylistAction.AddToHomeScreen -> addToHomeScreen()
             PlaylistAction.Export -> onExport()
             PlaylistAction.ChangeCover -> onChangeCover()
             PlaylistAction.RemoveCover -> context.symphony.groove.playlist.removeCover(playlist.id)
@@ -155,6 +162,18 @@ class PlaylistActions(
     )
 
     fun addToQueue() = context.symphony.radio.queue.add(playlist.getSongIds(context.symphony))
+
+    private fun addToHomeScreen() {
+        when (AppShortcuts.pinPlaylist(context.activity, playlist)) {
+            // Android takes over from here with its own prompt
+            AppShortcuts.PinResult.Requested -> {}
+            AppShortcuts.PinResult.NotSupported ->
+                Toast.makeText(context.activity, AppStrings.HomeScreenNotSupported, Toast.LENGTH_SHORT).show()
+
+            AppShortcuts.PinResult.Failed ->
+                Toast.makeText(context.activity, AppStrings.HomeScreenFailed, Toast.LENGTH_SHORT).show()
+        }
+    }
 }
 
 /**

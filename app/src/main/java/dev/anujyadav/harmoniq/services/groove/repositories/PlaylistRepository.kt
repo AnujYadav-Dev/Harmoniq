@@ -2,6 +2,7 @@ package dev.anujyadav.harmoniq.services.groove.repositories
 
 import android.net.Uri
 import dev.anujyadav.harmoniq.Symphony
+import dev.anujyadav.harmoniq.shortcuts.AppShortcuts
 import dev.anujyadav.harmoniq.services.groove.Playlist
 import dev.anujyadav.harmoniq.utils.ActivityUtils
 import dev.anujyadav.harmoniq.utils.FuzzySearchOption
@@ -189,6 +190,7 @@ class PlaylistRepository(private val symphony: Symphony) {
     }
 
     fun delete(id: String) {
+        AppShortcuts.onPlaylistDeleted(symphony.applicationContext, id)
         cache.remove(id)
         _all.update {
             it - id
@@ -259,6 +261,7 @@ class PlaylistRepository(private val symphony: Symphony) {
     fun renamePlaylist(playlist: Playlist, title: String) {
         val renamed = playlist.withTitle(title)
         cache[playlist.id] = renamed
+        AppShortcuts.onPlaylistRenamed(symphony.applicationContext, renamed)
         emitUpdateId()
         symphony.groove.coroutineScope.launch {
             symphony.database.playlists.update(renamed)

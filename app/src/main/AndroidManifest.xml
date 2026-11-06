@@ -31,6 +31,11 @@
             android:windowSoftInputMode="adjustResize"
             android:launchMode="singleTask"
             android:exported="true">
+            <!-- long pressing the Quick Settings tile -->
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
             <meta-data
                 android:name="android.app.lib_name"
                 android:value="" />
@@ -368,6 +373,20 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_suggested_info" />
         </receiver>
+
+        <service
+            android:name=".shortcuts.SleepTimerTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_sleep_timer"
+            android:label="@string/tile_sleep_timer_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
 
         <service
             android:name=".services.radio.RadioNotificationService"

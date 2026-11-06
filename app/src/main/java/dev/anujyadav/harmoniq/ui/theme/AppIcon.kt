@@ -46,11 +46,15 @@ enum class AppIcon(@DrawableRes val icon: Int, val label: String) {
      * something in between the launcher and the activity, which costs the system's splash screen
      * and open animation on every launch. So call this only when nothing is playing and the app
      * isn't in use.
+     *
+     * @return whether the icon changed.
      */
-    fun applyIfNeeded(context: Context) {
-        if (!isEnabled(context)) {
-            apply(context)
+    fun applyIfNeeded(context: Context): Boolean {
+        if (isEnabled(context)) {
+            return false
         }
+        apply(context)
+        return true
     }
 
     private fun isEnabled(context: Context) = context.packageManager

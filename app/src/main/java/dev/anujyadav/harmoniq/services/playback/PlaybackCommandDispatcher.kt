@@ -105,7 +105,8 @@ class PlaybackCommandDispatcher(private val symphony: Symphony) {
     private suspend fun playPlaylist(playlistId: String): Outcome {
         awaitLibrary()?.let { return it }
         val playlist = groove.playlist.get(playlistId) ?: return Outcome.PlaylistMissing
-        val songIds = playlist.getSongIds(symphony)
+        // the order the playlist's own screen plays it in
+        val songIds = playlist.getSortedSongIds(symphony)
         if (songIds.isEmpty()) {
             return Outcome.PlaylistEmpty
         }

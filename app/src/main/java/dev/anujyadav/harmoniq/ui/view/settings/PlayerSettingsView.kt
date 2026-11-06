@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Headset
+import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.HeadsetOff
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
@@ -58,6 +59,7 @@ fun PlayerSettingsView(context: ViewContext) {
     val seekBackDuration by context.symphony.settings.seekBackDuration.flow.collectAsState()
     val seekForwardDuration by context.symphony.settings.seekForwardDuration.flow.collectAsState()
     val gaplessPlayback by context.symphony.settings.gaplessPlayback.flow.collectAsState()
+    val lyricsWidgetEnabled by context.symphony.settings.lyricsWidgetEnabled.flow.collectAsState()
     val notificationActions by context.symphony.settings.notificationActions.flow.collectAsState()
 
     Scaffold(
@@ -133,6 +135,22 @@ fun PlayerSettingsView(context: ViewContext) {
                                 context.symphony.settings.fadePlaybackDuration.defaultValue,
                             )
                         },
+                    )
+                    HorizontalDivider()
+                    SettingsSwitchTile(
+                        icon = {
+                            Icon(Icons.Filled.Lyrics, null)
+                        },
+                        title = {
+                            Text(AppStrings.SyncedLyricsWidget)
+                        },
+                        subtitle = {
+                            Text(AppStrings.SyncedLyricsWidgetHint)
+                        },
+                        value = lyricsWidgetEnabled,
+                        onChange = { value ->
+                            context.symphony.settings.lyricsWidgetEnabled.setValue(value)
+                        }
                     )
                     HorizontalDivider()
                     SettingsSwitchTile(

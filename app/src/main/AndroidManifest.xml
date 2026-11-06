@@ -373,6 +373,17 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_suggested_info" />
         </receiver>
+        <receiver
+            android:name=".widgets.LyricsReceiver"
+            android:exported="false"
+            android:label="@string/widget_lyrics_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_lyrics_info" />
+        </receiver>
 
         <service
             android:name=".shortcuts.SleepTimerTileService"

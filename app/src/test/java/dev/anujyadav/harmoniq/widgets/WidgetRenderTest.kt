@@ -13,6 +13,7 @@ import androidx.glance.appwidget.ExperimentalGlanceRemoteViewsApi
 import androidx.glance.appwidget.GlanceRemoteViews
 import androidx.test.core.app.ApplicationProvider
 import dev.anujyadav.harmoniq.HarmoniqApplication
+import dev.anujyadav.harmoniq.services.playback.LyricsWidgetContent
 import dev.anujyadav.harmoniq.services.playback.PlaybackCommand
 import dev.anujyadav.harmoniq.services.playback.PlaybackSnapshot
 import dev.anujyadav.harmoniq.ui.theme.ThemeMode
@@ -81,6 +82,16 @@ class WidgetRenderTest(useSystemColors: Boolean) {
             listOf(DpSize(180.dp, 40.dp), DpSize(250.dp, 40.dp), DpSize(250.dp, 110.dp), DpSize(400.dp, 300.dp))
                 .forEach { size -> assertNotNull(inflate(render(size) { PlayerContent(state) })) }
             assertNotNull(inflate(render(DpSize(110.dp, 110.dp)) { AlbumArtContent(state) }))
+            listOf(
+                LyricsWidgetContent(),
+                LyricsWidgetContent(LyricsWidgetContent.Kind.Missing, "A song"),
+                LyricsWidgetContent(LyricsWidgetContent.Kind.Unsynced, "A song"),
+                LyricsWidgetContent(LyricsWidgetContent.Kind.Synced, "A song", "One", "Two", "Three"),
+                LyricsWidgetContent(LyricsWidgetContent.Kind.Synced, "A song"),
+            ).forEach { content ->
+                val lyrics = LyricsWidgetState(content, isEnabled = true, appearance)
+                assertNotNull(inflate(render(DpSize(250.dp, 110.dp)) { LyricsContent(lyrics) }))
+            }
             val listSize = DpSize(250.dp, 180.dp)
             val full = state(
                 snapshot.copy(

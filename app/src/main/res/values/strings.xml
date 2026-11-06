@@ -20,6 +20,11 @@
     <string name="widget_preview_up_next">Up next</string>
     <string name="widget_preview_suggested">Suggested for you</string>
     <string name="tile_sleep_timer_label">Sleep timer</string>
+    <string name="widget_lyrics_label">Synced lyrics</string>
+    <string name="widget_lyrics_description">The previous, current and next line of the song</string>
+    <string name="widget_preview_lyrics_previous">The line before</string>
+    <string name="widget_preview_lyrics_current">The line being sung</string>
+    <string name="widget_preview_lyrics_next">The line after</string>
     <string name="widget_preview_song">Song title</string>
     <string name="widget_preview_artist">Artist</string>
 </resources>

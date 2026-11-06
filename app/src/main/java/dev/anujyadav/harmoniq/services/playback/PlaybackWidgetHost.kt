@@ -21,16 +21,19 @@ interface PlaybackWidgetHost {
     fun update()
 }
 
-class AppWidgetPlaybackHost(context: Context) : PlaybackWidgetHost {
+class AppWidgetPlaybackHost(
+    context: Context,
+    private val providers: List<Class<*>> = PLAYER_AND_LIBRARY_PROVIDERS,
+) : PlaybackWidgetHost {
     private val context = context.applicationContext
 
     // some devices have no widget support at all, this is null there
     private val manager = AppWidgetManager.getInstance(this.context)
 
-    override fun hasWidgets() = PROVIDERS.any { idsOf(it).isNotEmpty() }
+    override fun hasWidgets() = providers.any { idsOf(it).isNotEmpty() }
 
     override fun update() {
-        PROVIDERS.forEach { provider ->
+        providers.forEach { provider ->
             val ids = idsOf(provider)
             if (ids.isNotEmpty()) {
                 context.sendBroadcast(
@@ -46,8 +49,8 @@ class AppWidgetPlaybackHost(context: Context) : PlaybackWidgetHost {
         manager?.getAppWidgetIds(ComponentName(context, provider)) ?: IntArray(0)
 
     private companion object {
-        // every widget provider of the app goes here
-        val PROVIDERS = listOf<Class<*>>(
+        // what reads the snapshot, the lyrics widget has a publisher of its own
+        val PLAYER_AND_LIBRARY_PROVIDERS = listOf<Class<*>>(
             NowPlayingBarReceiver::class.java,
             FullPlayerReceiver::class.java,
             AlbumArtReceiver::class.java,

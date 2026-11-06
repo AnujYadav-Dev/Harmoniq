@@ -415,6 +415,13 @@ object AppStrings {
     const val HomeScreenFailed = "Couldn't add the shortcut"
     const val SleepTimerOff = "Off"
     const val NothingPlaying = "Nothing playing"
+    const val SyncedLyricsWidget = "Synced lyrics widget"
+    const val SyncedLyricsWidgetHint =
+        "Follows the song line by line while the screen is on, which uses a little more battery"
+    const val LyricsWidgetIsOff = "Turn on the synced lyrics widget in Settings, under Player"
+    const val LyricsWidgetIdle = "Lyrics show here while music plays"
+    const val LyricsAreNotSynced = "These lyrics aren't timed, so they can't follow the song"
+    const val LyricsPause = "♪"
     const val UpNext = "Up next"
     const val SuggestedForYou = "Suggested for you"
     const val WidgetNoPlaylists = "No playlists yet"

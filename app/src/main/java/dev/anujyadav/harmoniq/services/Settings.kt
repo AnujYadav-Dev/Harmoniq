@@ -402,6 +402,10 @@ class Settings(private val symphony: Symphony) {
     val homeShowFavorites = BooleanEntry("home_show_favorites", true)
     val homePlaylistIds = StringListEntry("home_playlist_ids")
     val playlistLastPlayed = StringLongMapEntry("playlist_last_played")
+    val lyricsWidgetEnabled = BooleanEntry(
+        AppearanceSettings.KEY_LYRICS_WIDGET,
+        AppearanceSettings.DEFAULT_LYRICS_WIDGET,
+    )
     val lastSleepTimerMinutes = IntEntry("last_sleep_timer_minutes", SleepTimerPresets.DEFAULT_MINUTES)
     val lastMainTab = EnumEntry("main_last_tab", enumEntries<MainTab>(), MainTab.HOME)
     val songsFilterPattern = NullableStringEntry("songs_filter_pattern")
@@ -551,5 +555,9 @@ object AppearanceSettings {
     const val KEY_MATERIAL_YOU = "material_you"
     const val KEY_PRIMARY_COLOR = "primary_color"
     const val DEFAULT_MATERIAL_YOU = true
+    const val KEY_LYRICS_WIDGET = "lyrics_widget"
+
+    // off until someone asks for it: it's the one widget that updates all the time
+    const val DEFAULT_LYRICS_WIDGET = false
     val DEFAULT_THEME_MODE = ThemeMode.SYSTEM
 }

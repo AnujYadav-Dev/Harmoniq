@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_preview_surface"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="8dp">
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/widget_preview_lyrics_previous"
+        android:textColor="#FF9A9AA5"
+        android:textSize="13sp" />
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/widget_preview_lyrics_current"
+        android:textColor="#FFB9A7F5"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/widget_preview_lyrics_next"
+        android:textColor="#FF9A9AA5"
+        android:textSize="13sp" />
+</LinearLayout>

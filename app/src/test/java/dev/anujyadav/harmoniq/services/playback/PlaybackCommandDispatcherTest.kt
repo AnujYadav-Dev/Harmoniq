@@ -201,6 +201,20 @@ class PlaybackCommandDispatcherTest {
     }
 
     @Test
+    fun refreshingSuggestionsNeedsALibrary() {
+        assertEquals(Outcome.NoMediaFolders, run(PlaybackCommand.RefreshSuggestions))
+        hasFolders()
+        assertEquals(Outcome.EmptyLibrary, run(PlaybackCommand.RefreshSuggestions))
+    }
+
+    @Test
+    fun refreshingSuggestionsStartsNoMusic() {
+        library("a", "b")
+        assertEquals(Outcome.Done, run(PlaybackCommand.RefreshSuggestions))
+        assertTrue(radio.queue.isEmpty())
+    }
+
+    @Test
     fun clearingASleepTimerNeverBringsMusicBack() {
         library("a")
         savedQueue("a")

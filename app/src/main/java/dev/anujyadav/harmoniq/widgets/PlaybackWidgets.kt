@@ -38,7 +38,7 @@ import dev.anujyadav.harmoniq.utils.DurationUtils
 import kotlinx.coroutines.flow.first
 
 /** Draws from [PlaybackWidgetState], and redraws as it changes for as long as Android keeps it. */
-internal abstract class PlaybackWidget(private val artworkSizeDp: Int) : GlanceAppWidget() {
+internal abstract class PlaybackWidget(private val artworkSizeDp: Int?) : GlanceAppWidget() {
     protected abstract val sizes: Set<DpSize>
 
     override val sizeMode: SizeMode get() = SizeMode.Responsive(sizes)
@@ -47,7 +47,7 @@ internal abstract class PlaybackWidget(private val artworkSizeDp: Int) : GlanceA
         val density = context.resources.displayMetrics.density
         val states = PlaybackWidgetState.observe(
             context,
-            artworkSizePx = (artworkSizeDp * density).toInt(),
+            artworkSizePx = artworkSizeDp?.let { (it * density).toInt() },
             // Android keeps a layout for each size, each with the image
             imagesInWidget = sizes.size,
         )
@@ -90,9 +90,6 @@ private object QuickActionSizes {
     val Single = DpSize(40.dp, 40.dp)
     val Both = DpSize(110.dp, 40.dp)
     val All = setOf(Single, Both)
-
-    // no artwork is shown, there's no need for more than the state requires
-    const val ARTWORK_DP = 1
 }
 
 private object AlbumArtSizes {
@@ -116,7 +113,7 @@ internal class AlbumArtWidget : PlaybackWidget(AlbumArtSizes.ARTWORK_DP) {
     override fun Content(state: PlaybackWidgetState) = AlbumArtContent(state)
 }
 
-internal class QuickActionsWidget : PlaybackWidget(QuickActionSizes.ARTWORK_DP) {
+internal class QuickActionsWidget : PlaybackWidget(artworkSizeDp = null) {
     override val sizes get() = QuickActionSizes.All
 
     @Composable

@@ -4,14 +4,10 @@ import android.content.Intent
 import android.graphics.Bitmap
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.glance.action.Action
-import androidx.glance.action.ActionModifier
 import androidx.glance.appwidget.testing.unit.GlanceAppWidgetUnitTest
 import androidx.glance.appwidget.testing.unit.hasStartActivityClickAction
 import androidx.glance.appwidget.testing.unit.isLinearProgressIndicator
 import androidx.glance.appwidget.testing.unit.runGlanceAppWidgetUnitTest
-import androidx.glance.testing.GlanceNodeMatcher
-import androidx.glance.testing.unit.MappedNode
 import androidx.glance.testing.unit.hasContentDescriptionEqualTo
 import androidx.glance.testing.unit.hasTextEqualTo
 import androidx.test.core.app.ApplicationProvider
@@ -62,15 +58,6 @@ class WidgetContentTest {
     private fun GlanceAppWidgetUnitTest.assertSends(description: String, command: PlaybackCommand) {
         button(description).assertExists()
             .assert(sends(command))
-    }
-
-    // the library's own matcher compares Intent objects, which are never the same one
-    private fun sends(command: PlaybackCommand) = GlanceNodeMatcher<MappedNode>("sends $command") { node ->
-        val action = (node.value as MappedNode).emittable.modifier
-            .foldIn<Action?>(null) { found, modifier -> found ?: (modifier as? ActionModifier)?.action }
-        val intent = action?.javaClass?.getMethod("getIntent")?.invoke(action) as? Intent
-        val isForeground = action?.javaClass?.getMethod("isForegroundService")?.invoke(action) == true
-        isForeground && PlaybackCommand.fromIntent(intent) == command
     }
 
     @Test

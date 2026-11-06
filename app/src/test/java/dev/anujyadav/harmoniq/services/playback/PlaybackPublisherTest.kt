@@ -15,6 +15,9 @@ import dev.anujyadav.harmoniq.ui.theme.ThemeMode
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.toJavaDuration
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -171,6 +174,62 @@ class PlaybackPublisherTest {
     }
 
     @Test
+    fun aStoppedQueueLosesWhatLeftTheLibrary() {
+        store.write(
+            PlaybackSnapshot(
+                song = PlaybackSnapshot.Item(song("a").path, "a", "x"),
+                queue = listOf(
+                    PlaybackSnapshot.Item(song("a").path, "a", "x", queueIndex = 1),
+                    PlaybackSnapshot.Item("gone", "gone", "x", queueIndex = 2),
+                ),
+            )
+        )
+        library("a")
+        symphony.groove.readyDeferred.complete(true)
+        advance(interval)
+        advanceUntil { store.read().queue.size == 1 }
+        assertEquals(song("a").path, store.read().queue.single().path)
+    }
+
+    @Test
+    fun playlistsAreWaitedForThenPublished() {
+        val mix = symphony.groove.playlist.create("Mix", emptyList())
+        symphony.groove.playlist.add(mix)
+        play("a")
+        settle()
+        assertTrue(store.read().playlists.isEmpty())
+        assertFalse(store.read().isLibraryLoaded)
+
+        symphony.groove.readyDeferred.complete(true)
+        advance(interval)
+        advanceUntil { store.read().playlists.any { it.id == mix.id } }
+        assertTrue(store.read().isLibraryLoaded)
+        assertEquals("Mix", store.read().playlists.single { it.id == mix.id }.title)
+    }
+
+    @Test
+    fun aDeletedPlaylistLeaves() {
+        val mix = symphony.groove.playlist.create("Mix", emptyList())
+        symphony.groove.playlist.add(mix)
+        symphony.groove.readyDeferred.complete(true)
+        advance(interval)
+        advanceUntil { store.read().playlists.any { it.id == mix.id } }
+
+        symphony.groove.playlist.delete(mix.id)
+        advance(interval)
+        advanceUntil { store.read().playlists.none { it.id == mix.id } }
+    }
+
+    @OptIn(DelicateCoroutinesApi::class)
+    @Test
+    fun aRefreshReplacesSuggestions() {
+        val ids = (0..20).map { "s$it" }.toTypedArray()
+        library(*ids)
+        GlobalScope.launch { publisher.refreshSuggestionsNow() }
+        advanceUntil { store.read().suggestions.size == PlaybackSnapshot.SUGGESTIONS_PREVIEW_LIMIT }
+    }
+
+    @Test
     fun whenToClearASong() {
         fun clear(loaded: Boolean, inLibrary: Boolean, size: Int, folders: Boolean) =
             PlaybackPublisher.shouldClearSong(loaded, inLibrary, size, folders)
@@ -185,7 +244,7 @@ class PlaybackPublisherTest {
     fun suggestionsAreStoredByPathAndCapped() {
         val ids = (0..PlaybackSnapshot.SUGGESTIONS_PREVIEW_LIMIT + 3).map { "s$it" }.toTypedArray()
         library(*ids)
-        publisher.refreshSuggestions()
+        symphony.groove.readyDeferred.complete(true)
         advanceUntil { store.read().suggestions.isNotEmpty() }
         val suggestions = store.read().suggestions
         assertEquals(PlaybackSnapshot.SUGGESTIONS_PREVIEW_LIMIT, suggestions.size)

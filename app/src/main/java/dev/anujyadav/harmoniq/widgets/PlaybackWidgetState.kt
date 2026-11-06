@@ -16,7 +16,8 @@ import kotlinx.coroutines.flow.flowOn
 internal data class PlaybackWidgetState(
     val snapshot: PlaybackSnapshot,
     val isPlaying: Boolean,
-    val artwork: Bitmap,
+    /** Null for the widgets that show none. */
+    val artwork: Bitmap?,
     val appearance: WidgetAppearance,
 ) {
     companion object {
@@ -24,7 +25,7 @@ internal data class PlaybackWidgetState(
          * Starts with the current state, then follows changes. The artwork only reloads when
          * the song's artwork changes.
          */
-        fun observe(context: Context, artworkSizePx: Int, imagesInWidget: Int): Flow<PlaybackWidgetState> {
+        fun observe(context: Context, artworkSizePx: Int?, imagesInWidget: Int): Flow<PlaybackWidgetState> {
             val appContext = context.applicationContext
             var loadedPath: String? = null
             var loaded: Bitmap? = null
@@ -33,11 +34,13 @@ internal data class PlaybackWidgetState(
                 WidgetAppearance.changes(appContext),
             ) { snapshot, appearance ->
                 val path = snapshot.song?.artworkPath
-                val artwork = loaded?.takeIf { path == loadedPath }
-                    ?: PlaybackArtwork.load(appContext, path, artworkSizePx, imagesInWidget).also {
-                        loaded = it
-                        loadedPath = path
-                    }
+                val artwork = artworkSizePx?.let { size ->
+                    loaded?.takeIf { path == loadedPath }
+                        ?: PlaybackArtwork.load(appContext, path, size, imagesInWidget).also {
+                            loaded = it
+                            loadedPath = path
+                        }
+                }
                 PlaybackWidgetState(
                     snapshot = snapshot,
                     isPlaying = isReallyPlaying(snapshot, appContext),

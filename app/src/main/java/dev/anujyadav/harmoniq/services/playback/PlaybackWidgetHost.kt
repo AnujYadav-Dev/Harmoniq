@@ -7,8 +7,11 @@ import android.content.Intent
 import dev.anujyadav.harmoniq.widgets.AlbumArtReceiver
 import dev.anujyadav.harmoniq.widgets.FullPlayerReceiver
 import dev.anujyadav.harmoniq.widgets.NowPlayingBarReceiver
+import dev.anujyadav.harmoniq.widgets.PlaylistShortcutsReceiver
 import dev.anujyadav.harmoniq.widgets.QuickActionsReceiver
 import dev.anujyadav.harmoniq.widgets.QuickActionsSmallReceiver
+import dev.anujyadav.harmoniq.widgets.SuggestedReceiver
+import dev.anujyadav.harmoniq.widgets.UpNextReceiver
 
 /** The widgets on the home screen, as far as [PlaybackPublisher] needs to know. */
 interface PlaybackWidgetHost {
@@ -50,6 +53,9 @@ class AppWidgetPlaybackHost(context: Context) : PlaybackWidgetHost {
             AlbumArtReceiver::class.java,
             QuickActionsReceiver::class.java,
             QuickActionsSmallReceiver::class.java,
+            PlaylistShortcutsReceiver::class.java,
+            UpNextReceiver::class.java,
+            SuggestedReceiver::class.java,
         )
     }
 }

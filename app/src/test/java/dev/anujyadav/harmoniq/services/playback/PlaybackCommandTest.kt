@@ -29,6 +29,7 @@ class PlaybackCommandTest {
         PlaybackCommand.ToggleFavorite,
         PlaybackCommand.ShuffleAll,
         PlaybackCommand.ClearSleepTimer,
+        PlaybackCommand.RefreshSuggestions,
         PlaybackCommand.PlayPlaylist("playlist-1"),
         // paths hold whatever a file can be named
         PlaybackCommand.PlaySong("primary:Music/Rock & Roll/100% é?#=.mp3"),

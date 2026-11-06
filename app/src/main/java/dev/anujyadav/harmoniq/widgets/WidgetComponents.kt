@@ -93,10 +93,13 @@ private fun GlanceModifier.widgetBackground(): GlanceModifier = when {
 
 @Composable
 internal fun WidgetArtwork(
-    artwork: Bitmap,
+    artwork: Bitmap?,
     title: String?,
     modifier: GlanceModifier = GlanceModifier,
 ) {
+    if (artwork == null) {
+        return
+    }
     Image(
         provider = ImageProvider(artwork),
         contentDescription = title?.let { AppStrings.ArtworkOfX(it) },
@@ -167,10 +170,10 @@ internal fun WidgetTitle(text: String, modifier: GlanceModifier = GlanceModifier
 }
 
 @Composable
-internal fun WidgetSubtitle(text: String, modifier: GlanceModifier = GlanceModifier) {
+internal fun WidgetSubtitle(text: String, modifier: GlanceModifier = GlanceModifier, maxLines: Int = 1) {
     Text(
         text = text,
-        maxLines = 1,
+        maxLines = maxLines,
         modifier = modifier,
         style = TextStyle(
             color = GlanceTheme.colors.onSurfaceVariant,

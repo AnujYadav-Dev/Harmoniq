@@ -10,6 +10,15 @@
     <string name="widget_quick_actions_description">Shuffle all, and play and pause</string>
     <string name="widget_quick_actions_small_label">Play button</string>
     <string name="widget_quick_actions_small_description">Play and pause in a single cell, or shuffle all when nothing has played yet</string>
+    <string name="widget_playlists_label">Playlist shortcuts</string>
+    <string name="widget_playlists_description">Your home screen playlists, tap one to play it</string>
+    <string name="widget_up_next_label">Up next</string>
+    <string name="widget_up_next_description">What\'s coming in the queue, tap a song to jump to it</string>
+    <string name="widget_suggested_label">Suggested for you</string>
+    <string name="widget_suggested_description">Songs picked from your library, tap one to play it</string>
+    <string name="widget_preview_playlists">Playlists</string>
+    <string name="widget_preview_up_next">Up next</string>
+    <string name="widget_preview_suggested">Suggested for you</string>
     <string name="widget_preview_song">Song title</string>
     <string name="widget_preview_artist">Artist</string>
 </resources>

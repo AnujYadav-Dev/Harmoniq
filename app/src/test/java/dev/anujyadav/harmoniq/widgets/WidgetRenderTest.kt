@@ -81,6 +81,19 @@ class WidgetRenderTest(useSystemColors: Boolean) {
             listOf(DpSize(180.dp, 40.dp), DpSize(250.dp, 40.dp), DpSize(250.dp, 110.dp), DpSize(400.dp, 300.dp))
                 .forEach { size -> assertNotNull(inflate(render(size) { PlayerContent(state) })) }
             assertNotNull(inflate(render(DpSize(110.dp, 110.dp)) { AlbumArtContent(state) }))
+            val listSize = DpSize(250.dp, 180.dp)
+            val full = state(
+                snapshot.copy(
+                    playlists = List(4) { PlaybackSnapshot.PlaylistItem("p$it", "Playlist $it", it) },
+                    queue = List(3) { PlaybackSnapshot.Item("q$it", "Song $it", "Artist", queueIndex = it + 1) },
+                    suggestions = List(3) { PlaybackSnapshot.Item("s$it", "Song $it", "Artist") },
+                )
+            )
+            listOf(state, full).forEach { listState ->
+                assertNotNull(inflate(render(listSize) { PlaylistShortcutsContent(listState) }))
+                assertNotNull(inflate(render(listSize) { UpNextContent(listState) }))
+                assertNotNull(inflate(render(listSize) { SuggestedContent(listState) }))
+            }
             listOf(DpSize(40.dp, 40.dp), DpSize(110.dp, 40.dp))
                 .forEach { size -> assertNotNull(inflate(render(size) { QuickActionsContent(state) })) }
         }

@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Keeps [PlaybackSnapshot] up to date for widgets. Runs on events only, never on the position
@@ -74,6 +75,17 @@ class PlaybackPublisher(
                 settings.primaryColor.flow.drop(1),
             ).collect { redrawWidgets() }
         }
+        backgroundScope.launch {
+            val settings = symphony.settings
+            merge(
+                symphony.groove.playlist.updateId.drop(1),
+                settings.playlistLastPlayed.flow.drop(1),
+                settings.homePlaylistsSortBy.flow.drop(1),
+                settings.homePlaylistsLimit.flow.drop(1),
+                settings.homeShowFavorites.flow.drop(1),
+                settings.homePlaylistIds.flow.drop(1),
+            ).collect { requestPublish() }
+        }
     }
 
     fun stop() {
@@ -88,12 +100,20 @@ class PlaybackPublisher(
         mainHandler.post {
             lastPublishAt = NEVER
             requestPublishOnMain()
+            if (currentSuggestions().isEmpty() && symphony.groove.readyDeferred.isCompleted) {
+                loadSuggestions()
+            }
         }
     }
 
     /** New suggestions, which otherwise stay the same as long as their songs exist. */
-    fun refreshSuggestions() {
-        mainHandler.post { loadSuggestions() }
+    suspend fun refreshSuggestionsNow() {
+        val loaded = withContext(Dispatchers.Default) { computeSuggestions() } ?: return
+        withContext(Dispatchers.Main) {
+            suggestions = loaded
+            lastPublishAt = NEVER
+            requestPublishOnMain()
+        }
     }
 
     // the look isn't part of the snapshot, widgets read it from the settings themselves
@@ -123,20 +143,22 @@ class PlaybackPublisher(
         isLoadingSuggestions = true
         // scores every song of the library
         backgroundScope.launch {
-            val loaded = try {
-                symphony.groove.suggestions
-                    .suggest(SongSuggestions.Category.ForYou, PlaybackSnapshot.SUGGESTIONS_PREVIEW_LIMIT)
-                    .mapNotNull { id -> symphony.groove.song.get(id)?.let { toItem(it) } }
-            } catch (err: Exception) {
-                Logger.warn(TAG, "unable to load suggestions", err)
-                null
-            }
+            val loaded = computeSuggestions()
             mainHandler.post {
                 isLoadingSuggestions = false
                 loaded?.let { suggestions = it }
                 requestPublishOnMain()
             }
         }
+    }
+
+    private fun computeSuggestions() = try {
+        symphony.groove.suggestions
+            .suggest(SongSuggestions.Category.ForYou, PlaybackSnapshot.SUGGESTIONS_PREVIEW_LIMIT)
+            .mapNotNull { id -> symphony.groove.song.get(id)?.let { toItem(it) } }
+    } catch (err: Exception) {
+        Logger.warn(TAG, "unable to load suggestions", err)
+        null
     }
 
     private fun requestPublish() {
@@ -185,6 +207,8 @@ class PlaybackPublisher(
             loopMode = radio.queue.currentLoopMode,
             sleepTimerEndsAtMs = radio.sleepTimer?.endsAt,
             suggestions = currentSuggestions(),
+            playlists = currentPlaylists(previous),
+            isLibraryLoaded = symphony.groove.readyDeferred.isCompleted,
         )
         val song = radio.queue.currentSongId?.let { symphony.groove.song.get(it) }
             ?: return afterMusicEnded(shared)
@@ -211,8 +235,24 @@ class PlaybackPublisher(
         )
         return when {
             shouldClear -> PlaybackSnapshot(suggestions = previous.suggestions)
-            else -> previous.copy(isPlaying = false)
+            else -> previous.copy(
+                isPlaying = false,
+                queue = previous.queue.filter {
+                    !symphony.groove.readyDeferred.isCompleted || isInLibrary(it.path)
+                },
+            )
         }
+    }
+
+    // keeps what's known while there's nothing to read, which also happens during a refresh
+    private fun currentPlaylists(previous: PlaybackSnapshot): List<PlaybackSnapshot.PlaylistItem> {
+        val playlists = symphony.groove.playlist
+        if (!symphony.groove.readyDeferred.isCompleted || playlists.isUpdating.value) {
+            return previous.playlists
+        }
+        return playlists.getHomePlaylists()
+            .take(PlaybackSnapshot.PLAYLISTS_PREVIEW_LIMIT)
+            .map { PlaybackSnapshot.PlaylistItem(it.id, it.title, it.numberOfTracks) }
     }
 
     private fun upcomingQueue(): List<PlaybackSnapshot.Item> {

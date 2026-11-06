@@ -24,6 +24,7 @@ sealed interface PlaybackCommand {
     data object ToggleFavorite : PlaybackCommand
     data object ShuffleAll : PlaybackCommand
     data object ClearSleepTimer : PlaybackCommand
+    data object RefreshSuggestions : PlaybackCommand
     data class PlayPlaylist(val playlistId: String) : PlaybackCommand
     data class PlaySong(val path: String) : PlaybackCommand
 
@@ -43,6 +44,7 @@ sealed interface PlaybackCommand {
             ToggleFavorite -> builder.authority(TOGGLE_FAVORITE)
             ShuffleAll -> builder.authority(SHUFFLE_ALL)
             ClearSleepTimer -> builder.authority(CLEAR_SLEEP_TIMER)
+            RefreshSuggestions -> builder.authority(REFRESH_SUGGESTIONS)
             is PlayPlaylist -> builder.authority(PLAY_PLAYLIST).appendQueryParameter(ARG_ID, playlistId)
             is PlaySong -> builder.authority(PLAY_SONG).appendQueryParameter(ARG_PATH, path)
             is JumpToQueueItem -> builder.authority(JUMP_TO_QUEUE_ITEM)
@@ -85,6 +87,7 @@ sealed interface PlaybackCommand {
         private const val TOGGLE_FAVORITE = "toggle_favorite"
         private const val SHUFFLE_ALL = "shuffle_all"
         private const val CLEAR_SLEEP_TIMER = "clear_sleep_timer"
+        private const val REFRESH_SUGGESTIONS = "refresh_suggestions"
         private const val PLAY_PLAYLIST = "play_playlist"
         private const val PLAY_SONG = "play_song"
         private const val JUMP_TO_QUEUE_ITEM = "jump_to_queue_item"
@@ -119,6 +122,7 @@ sealed interface PlaybackCommand {
                 TOGGLE_FAVORITE -> ToggleFavorite
                 SHUFFLE_ALL -> ShuffleAll
                 CLEAR_SLEEP_TIMER -> ClearSleepTimer
+                REFRESH_SUGGESTIONS -> RefreshSuggestions
                 PLAY_PLAYLIST -> arg(ARG_ID)?.let { PlayPlaylist(it) }
                 PLAY_SONG -> arg(ARG_PATH)?.let { PlaySong(it) }
                 JUMP_TO_QUEUE_ITEM -> {

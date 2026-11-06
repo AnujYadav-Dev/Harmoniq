@@ -55,6 +55,8 @@ class PlaybackCommandDispatcher(private val symphony: Symphony) {
                 radio.clearSleepTimer()
                 Outcome.Done
             }
+
+            PlaybackCommand.RefreshSuggestions -> refreshSuggestions()
         }
     }
 
@@ -87,6 +89,16 @@ class PlaybackCommandDispatcher(private val symphony: Symphony) {
             return Outcome.EmptyLibrary
         }
         radio.shorty.playQueue(songIds, shuffle = true)
+        return Outcome.Done
+    }
+
+    // waits for it: with nothing else going on, the service leaving could end the process
+    private suspend fun refreshSuggestions(): Outcome {
+        awaitLibrary()?.let { return it }
+        if (groove.song.count.value == 0) {
+            return Outcome.EmptyLibrary
+        }
+        symphony.playbackPublisher.refreshSuggestionsNow()
         return Outcome.Done
     }
 

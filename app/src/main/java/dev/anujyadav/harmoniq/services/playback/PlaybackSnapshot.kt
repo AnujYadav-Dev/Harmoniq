@@ -33,6 +33,10 @@ data class PlaybackSnapshot(
     val queue: List<Item> = emptyList(),
     /** At most [SUGGESTIONS_PREVIEW_LIMIT]. */
     val suggestions: List<Item> = emptyList(),
+    /** The home screen's playlists, at most [PLAYLISTS_PREVIEW_LIMIT]. */
+    val playlists: List<PlaylistItem> = emptyList(),
+    /** Whether the lists above are what the library has, or only that nothing has loaded yet. */
+    val isLibraryLoaded: Boolean = false,
 ) {
     /**
      * @param path identifies the song, ids change when the library is reset.
@@ -49,12 +53,16 @@ data class PlaybackSnapshot(
         val queueIndex: Int? = null,
     )
 
+    @Serializable
+    data class PlaylistItem(val id: String, val title: String, val songCount: Int)
+
     /** The time alone doesn't make a change worth redrawing widgets for. */
     fun hasSameContentAs(other: PlaybackSnapshot) = copy(capturedAtMs = 0L) == other.copy(capturedAtMs = 0L)
 
     companion object {
         const val QUEUE_PREVIEW_LIMIT = 20
         const val SUGGESTIONS_PREVIEW_LIMIT = 6
+        const val PLAYLISTS_PREVIEW_LIMIT = 12
     }
 }
 

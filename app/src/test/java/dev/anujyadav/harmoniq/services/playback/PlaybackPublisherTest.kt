@@ -11,6 +11,7 @@ import dev.anujyadav.harmoniq.services.radio.RadioTestSupport.advanceUntil
 import dev.anujyadav.harmoniq.services.radio.RadioTestSupport.allowPlayback
 import dev.anujyadav.harmoniq.services.radio.RadioTestSupport.song
 import dev.anujyadav.harmoniq.services.radio.ShadowPlayableMediaPlayer
+import dev.anujyadav.harmoniq.ui.theme.ThemeMode
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.toJavaDuration
@@ -83,6 +84,14 @@ class PlaybackPublisherTest {
         assertEquals(listOf(song("b").path, song("c").path), snapshot.queue.map { it.path })
         assertEquals(listOf(1, 2), snapshot.queue.map { it.queueIndex })
         assertTrue(host.updates.get() > 0)
+    }
+
+    @Test
+    fun aNewLookRedrawsWidgets() {
+        Thread.sleep(BACKGROUND_SETTLE_MS)
+        val before = host.updates.get()
+        symphony.settings.themeMode.setValue(ThemeMode.DARK)
+        advanceUntil { host.updates.get() > before }
     }
 
     @Test

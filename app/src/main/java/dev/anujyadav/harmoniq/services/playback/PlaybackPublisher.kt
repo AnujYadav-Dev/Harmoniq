@@ -17,6 +17,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 
 /**
@@ -65,6 +66,14 @@ class PlaybackPublisher(
             symphony.groove.readyDeferred.await()
             onScanFinish()
         }
+        backgroundScope.launch {
+            val settings = symphony.settings
+            merge(
+                settings.themeMode.flow.drop(1),
+                settings.useMaterialYou.flow.drop(1),
+                settings.primaryColor.flow.drop(1),
+            ).collect { redrawWidgets() }
+        }
     }
 
     fun stop() {
@@ -85,6 +94,13 @@ class PlaybackPublisher(
     /** New suggestions, which otherwise stay the same as long as their songs exist. */
     fun refreshSuggestions() {
         mainHandler.post { loadSuggestions() }
+    }
+
+    // the look isn't part of the snapshot, widgets read it from the settings themselves
+    private fun redrawWidgets() {
+        if (host.hasWidgets()) {
+            scope.launch { host.update() }
+        }
     }
 
     private fun onScanFinish() {

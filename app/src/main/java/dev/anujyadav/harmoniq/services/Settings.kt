@@ -189,8 +189,12 @@ class Settings(private val symphony: Symphony) {
         }
     }
 
-    val themeMode = EnumEntry("theme_mode", enumEntries<ThemeMode>(), ThemeMode.SYSTEM)
-    val useMaterialYou = BooleanEntry("material_you", true)
+    val themeMode = EnumEntry(
+        AppearanceSettings.KEY_THEME_MODE,
+        enumEntries<ThemeMode>(),
+        AppearanceSettings.DEFAULT_THEME_MODE,
+    )
+    val useMaterialYou = BooleanEntry(AppearanceSettings.KEY_MATERIAL_YOU, AppearanceSettings.DEFAULT_MATERIAL_YOU)
     val showBottomNavLabels = BooleanEntry("show_bottom_nav_labels", true)
     val lastUsedSongsSortBy = EnumEntry(
         "last_used_song_sort_by",
@@ -406,7 +410,7 @@ class Settings(private val symphony: Symphony) {
     val ignoreAudioFocusLoss = BooleanEntry("ignore_audio_focus_loss", false)
     val playOnHeadphonesConnect = BooleanEntry("play_on_headphones_connect", false)
     val pauseOnHeadphonesDisconnect = BooleanEntry("pause_on_headphones_disconnect", true)
-    val primaryColor = NullableStringEntry("primary_color")
+    val primaryColor = NullableStringEntry(AppearanceSettings.KEY_PRIMARY_COLOR)
     val randomizePrimaryColor = BooleanEntry("randomize_primary_color", false)
 
     // pre-picked random color for the next launch, so its splash screen can match
@@ -514,7 +518,7 @@ class Settings(private val symphony: Symphony) {
     val globalSearchSaveLrcFiles = BooleanEntry("global_search_save_lrc_files", false)
 
     private fun getSharedPreferences() = symphony.applicationContext
-        .getSharedPreferences("settings", Context.MODE_PRIVATE)
+        .getSharedPreferences(AppearanceSettings.PREFERENCES_NAME, Context.MODE_PRIVATE)
 
     init {
         // rewind and forward used to be saved under one key, so keep what was chosen back then
@@ -536,4 +540,14 @@ class Settings(private val symphony: Symphony) {
         private const val PLAYLIST_SWIPE_KIND = "playlist"
         private const val ONLINE_SWIPE_KIND = "online"
     }
+}
+
+/** Where Settings keeps the app's look, for what has to read it with no Symphony around. */
+object AppearanceSettings {
+    const val PREFERENCES_NAME = "settings"
+    const val KEY_THEME_MODE = "theme_mode"
+    const val KEY_MATERIAL_YOU = "material_you"
+    const val KEY_PRIMARY_COLOR = "primary_color"
+    const val DEFAULT_MATERIAL_YOU = true
+    val DEFAULT_THEME_MODE = ThemeMode.SYSTEM
 }

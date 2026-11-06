@@ -1,6 +1,7 @@
 ﻿package dev.anujyadav.harmoniq.ui.theme
 
 import android.app.Activity
+import android.content.Context
 import android.content.res.Configuration
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -48,23 +49,12 @@ fun SymphonyTheme(
     val contentScale by context.symphony.settings.contentScale.flow.collectAsState()
 
     val colorSchemeMode = themeMode.toColorSchemeMode(isSystemInDarkTheme())
-    val colorScheme = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && useMaterialYou) {
-        val currentContext = LocalContext.current
-        when (colorSchemeMode) {
-            ColorSchemeMode.LIGHT -> dynamicLightColorScheme(currentContext)
-            ColorSchemeMode.DARK -> dynamicDarkColorScheme(currentContext)
-            ColorSchemeMode.BLACK -> ThemeColorSchemes.toBlackColorScheme(
-                dynamicDarkColorScheme(currentContext)
-            )
-        }
-    } else {
-        val primaryColor = ThemeColors.resolvePrimaryColor(primaryColorName)
-        when (colorSchemeMode) {
-            ColorSchemeMode.LIGHT -> ThemeColorSchemes.createLightColorScheme(primaryColor)
-            ColorSchemeMode.DARK -> ThemeColorSchemes.createDarkColorScheme(primaryColor)
-            ColorSchemeMode.BLACK -> ThemeColorSchemes.createBlackColorScheme(primaryColor)
-        }
-    }
+    val colorScheme = resolveColorScheme(
+        LocalContext.current,
+        colorSchemeMode,
+        useMaterialYou,
+        primaryColorName,
+    )
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -95,6 +85,26 @@ fun SymphonyTheme(
             }
         }
     )
+}
+
+fun resolveColorScheme(
+    context: Context,
+    colorSchemeMode: ColorSchemeMode,
+    useMaterialYou: Boolean,
+    primaryColorName: String?,
+) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && useMaterialYou) {
+    when (colorSchemeMode) {
+        ColorSchemeMode.LIGHT -> dynamicLightColorScheme(context)
+        ColorSchemeMode.DARK -> dynamicDarkColorScheme(context)
+        ColorSchemeMode.BLACK -> ThemeColorSchemes.toBlackColorScheme(dynamicDarkColorScheme(context))
+    }
+} else {
+    val primaryColor = ThemeColors.resolvePrimaryColor(primaryColorName)
+    when (colorSchemeMode) {
+        ColorSchemeMode.LIGHT -> ThemeColorSchemes.createLightColorScheme(primaryColor)
+        ColorSchemeMode.DARK -> ThemeColorSchemes.createDarkColorScheme(primaryColor)
+        ColorSchemeMode.BLACK -> ThemeColorSchemes.createBlackColorScheme(primaryColor)
+    }
 }
 
 fun ThemeMode.toColorSchemeMode(symphony: Symphony): ColorSchemeMode {

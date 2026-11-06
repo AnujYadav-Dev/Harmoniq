@@ -4,6 +4,11 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import dev.anujyadav.harmoniq.widgets.AlbumArtReceiver
+import dev.anujyadav.harmoniq.widgets.FullPlayerReceiver
+import dev.anujyadav.harmoniq.widgets.NowPlayingBarReceiver
+import dev.anujyadav.harmoniq.widgets.QuickActionsReceiver
+import dev.anujyadav.harmoniq.widgets.QuickActionsSmallReceiver
 
 /** The widgets on the home screen, as far as [PlaybackPublisher] needs to know. */
 interface PlaybackWidgetHost {
@@ -39,6 +44,12 @@ class AppWidgetPlaybackHost(context: Context) : PlaybackWidgetHost {
 
     private companion object {
         // every widget provider of the app goes here
-        val PROVIDERS = emptyList<Class<*>>()
+        val PROVIDERS = listOf<Class<*>>(
+            NowPlayingBarReceiver::class.java,
+            FullPlayerReceiver::class.java,
+            AlbumArtReceiver::class.java,
+            QuickActionsReceiver::class.java,
+            QuickActionsSmallReceiver::class.java,
+        )
     }
 }

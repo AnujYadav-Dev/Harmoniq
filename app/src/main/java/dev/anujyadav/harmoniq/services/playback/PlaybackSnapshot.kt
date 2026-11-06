@@ -1,8 +1,13 @@
 package dev.anujyadav.harmoniq.services.playback
 
 import android.content.Context
+import android.content.SharedPreferences
 import dev.anujyadav.harmoniq.services.radio.RadioQueue
 import dev.anujyadav.harmoniq.utils.Logger
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -68,6 +73,18 @@ class PlaybackSnapshotStore(context: Context) {
             PlaybackSnapshot()
         }
     }
+
+    /** The current snapshot, then every one written after it in this process. */
+    fun changes(): Flow<PlaybackSnapshot> = callbackFlow {
+        trySend(read())
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == KEY_SNAPSHOT) {
+                trySend(read())
+            }
+        }
+        preferences.registerOnSharedPreferenceChangeListener(listener)
+        awaitClose { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }.distinctUntilChanged()
 
     fun write(snapshot: PlaybackSnapshot) {
         preferences.edit().putString(KEY_SNAPSHOT, json.encodeToString(snapshot)).apply()

@@ -177,6 +177,8 @@ dependencies {
     implementation(libs.core)
     implementation(libs.core.splashscreen)
     implementation(libs.fuzzywuzzy)
+    implementation(libs.glance.appwidget)
+    implementation(libs.glance.material3)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.lifecycle.runtime)
     implementation(libs.media)
@@ -192,6 +194,8 @@ dependencies {
     debugImplementation(libs.compose.ui.test.manifest)
 
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.glance.appwidget.testing)
+    testImplementation(libs.glance.testing)
     testImplementation(libs.okhttp3.mockwebserver)
     testImplementation(libs.work.testing)
     testImplementation(libs.room.testing)

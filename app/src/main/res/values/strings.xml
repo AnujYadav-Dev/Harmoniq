@@ -1,3 +1,15 @@
 <resources>
     <string name="app_name">Harmoniq</string>
+    <string name="widget_now_playing_bar_label">Now playing bar</string>
+    <string name="widget_now_playing_bar_description">The current song, with previous, play and next</string>
+    <string name="widget_full_player_label">Full player</string>
+    <string name="widget_full_player_description">The current song with favorite, shuffle, repeat and progress</string>
+    <string name="widget_album_art_label">Album art</string>
+    <string name="widget_album_art_description">The current song\'s artwork, with play and pause</string>
+    <string name="widget_quick_actions_label">Quick actions</string>
+    <string name="widget_quick_actions_description">Shuffle all, and play and pause</string>
+    <string name="widget_quick_actions_small_label">Play button</string>
+    <string name="widget_quick_actions_small_description">Play and pause in a single cell, or shuffle all when nothing has played yet</string>
+    <string name="widget_preview_song">Song title</string>
+    <string name="widget_preview_artist">Artist</string>
 </resources>

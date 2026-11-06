@@ -6,6 +6,7 @@ import dev.anujyadav.harmoniq.services.Settings
 import dev.anujyadav.harmoniq.services.database.Database
 import dev.anujyadav.harmoniq.services.globalsearch.GlobalSearch
 import dev.anujyadav.harmoniq.services.groove.Groove
+import dev.anujyadav.harmoniq.services.playback.PlaybackPublisher
 import dev.anujyadav.harmoniq.services.radio.Radio
 
 class Symphony(private val application: Application) : Symphony.Hooks {
@@ -26,13 +27,14 @@ class Symphony(private val application: Application) : Symphony.Hooks {
     val groove = Groove(this)
     val radio = Radio(this)
     val globalSearch = GlobalSearch(this)
+    val playbackPublisher = PlaybackPublisher(this)
 
     val applicationContext get() = application.applicationContext
 
     /** Closes the open activity. Null while there is none, Symphony outlives activities. */
     var closeApp: (() -> Unit)? = null
     private var isReady = false
-    private var hooks = listOf(this, radio, groove, globalSearch)
+    private var hooks = listOf(this, radio, groove, globalSearch, playbackPublisher)
 
     private val isActivityVisible
         get() = (application as? HarmoniqApplication)?.visibleActivity != null

@@ -193,6 +193,9 @@ class RadioSession(val symphony: Symphony) {
         }
     }
 
+    /** For changes the notification doesn't hear about by itself. */
+    fun refreshNotification() = updateIfPlaying()
+
     fun cancel() {
         notification.cancel()
         mediaSession.isActive = false

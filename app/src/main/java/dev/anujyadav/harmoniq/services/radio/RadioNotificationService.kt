@@ -10,6 +10,8 @@ import android.os.IBinder
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import dev.anujyadav.harmoniq.HarmoniqApplication
+import dev.anujyadav.harmoniq.services.playback.PlaybackCommand
+import dev.anujyadav.harmoniq.services.playback.PlaybackCommandDispatcher
 import dev.anujyadav.harmoniq.utils.Eventer
 import dev.anujyadav.harmoniq.utils.Logger
 import kotlinx.coroutines.CancellationException
@@ -23,7 +25,7 @@ import kotlinx.coroutines.launch
 /**
  * Holds the foreground notification that keeps the process alive for music, Radio itself owns
  * playback. It's also how commands reach Radio when the process may have no activity and no
- * Symphony yet, see [RadioCommand].
+ * Symphony yet, see [PlaybackCommand].
  */
 class RadioNotificationService : Service() {
     enum class Event {
@@ -34,6 +36,7 @@ class RadioNotificationService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var commandJob: Job? = null
+    private var pendingCommands = 0
     private var isForeground = false
     private var lastStartId = 0
 
@@ -52,7 +55,7 @@ class RadioNotificationService : Service() {
             return START_NOT_STICKY
         }
         events.dispatch(Event.START)
-        val command = RadioCommand.fromAction(intent?.action)
+        val command = PlaybackCommand.fromIntent(intent)
         when {
             command != null -> run(command)
             // stopped before this got to start, nothing wants the service anymore
@@ -79,23 +82,37 @@ class RadioNotificationService : Service() {
         false
     }
 
-    private fun run(command: RadioCommand) {
-        commandJob?.cancel()
+    // one at a time and in order, like two quick taps on next
+    private fun run(command: PlaybackCommand) {
+        val previous = commandJob
+        pendingCommands++
         commandJob = scope.launch {
+            previous?.join()
             val failure = try {
                 // the first command of a process creates Symphony here, safely in foreground
                 val symphony = (application as HarmoniqApplication).symphony
-                RadioCommandRunner(symphony).run(command).failureMessage
+                PlaybackCommandDispatcher(symphony).run(command).failureMessage
             } catch (err: CancellationException) {
                 throw err
             } catch (err: Exception) {
                 Logger.error(TAG, "command $command failed", err)
-                RadioCommandRunner.Outcome.PlaybackFailed.failureMessage
+                PlaybackCommandDispatcher.Outcome.PlaybackFailed.failureMessage
             }
-            failure?.let {
-                RadioNotification.showStatus(this@RadioNotificationService, it)
-                destroy()
+            failure?.let { RadioNotification.showStatus(this@RadioNotificationService, it) }
+            pendingCommands--
+            if (pendingCommands == 0) {
+                settleAfterCommands()
             }
+        }
+    }
+
+    // with music, what the command did reaches the notification, loading must not stay behind.
+    // Without, nothing needs the service, like a sleep timer cleared with no music around
+    private fun settleAfterCommands() {
+        val radio = (application as HarmoniqApplication).symphonyIfCreated?.radio
+        when {
+            radio == null || radio.queue.isEmpty() -> destroy()
+            else -> radio.session.refreshNotification()
         }
     }
 
@@ -128,10 +145,11 @@ class RadioNotificationService : Service() {
          *
          * @return false if refused, nothing happens then.
          */
-        fun start(context: Context, command: RadioCommand? = null) = try {
+        fun start(context: Context, command: PlaybackCommand? = null) = try {
             ContextCompat.startForegroundService(
                 context,
-                Intent(context, RadioNotificationService::class.java).setAction(command?.action),
+                command?.createIntent(context)
+                    ?: Intent(context, RadioNotificationService::class.java),
             )
             true
         } catch (err: Exception) {

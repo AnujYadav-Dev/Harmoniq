@@ -8,6 +8,7 @@ import android.net.Uri
 import androidx.core.app.NotificationCompat
 import androidx.test.core.app.ApplicationProvider
 import dev.anujyadav.harmoniq.HarmoniqApplication
+import dev.anujyadav.harmoniq.services.playback.PlaybackCommand
 import dev.anujyadav.harmoniq.services.radio.RadioTestSupport.advanceUntil
 import dev.anujyadav.harmoniq.services.radio.RadioTestSupport.allowPlayback
 import dev.anujyadav.harmoniq.services.radio.RadioTestSupport.song
@@ -49,16 +50,16 @@ class RadioNotificationServiceTest {
         application.releaseSymphony()
     }
 
-    private fun intent(command: RadioCommand? = null) =
-        Intent(application, RadioNotificationService::class.java).setAction(command?.action)
+    private fun intent(command: PlaybackCommand? = null) =
+        command?.createIntent(application) ?: Intent(application, RadioNotificationService::class.java)
 
-    private fun start(command: RadioCommand? = null) =
+    private fun start(command: PlaybackCommand? = null) =
         Robolectric.buildService(RadioNotificationService::class.java, intent(command))
             .create()
             .startCommand(0, nextStartId++)
             .also { started.add(it) }
 
-    private fun ServiceController<RadioNotificationService>.startAgain(command: RadioCommand? = null) =
+    private fun ServiceController<RadioNotificationService>.startAgain(command: PlaybackCommand? = null) =
         withIntent(intent(command)).startCommand(0, nextStartId++)
 
     private val ServiceController<RadioNotificationService>.shadow get() = shadowOf(get())
@@ -75,7 +76,7 @@ class RadioNotificationServiceTest {
     @Test
     fun aCommandShowsLoadingUntilThereIsMusic() {
         application.symphony.settings.mediaFolders.setValue(setOf(Uri.parse("content://docs/tree/none")))
-        val service = start(RadioCommand.Resume)
+        val service = start(PlaybackCommand.Resume)
         assertEquals(RadioNotification.NOTIFICATION_ID, service.shadow.lastForegroundNotificationId)
         assertEquals(AppStrings.Loading, text(service.shadow.lastForegroundNotification))
     }
@@ -120,13 +121,13 @@ class RadioNotificationServiceTest {
     @Test
     fun aCommandCreatesSymphony() {
         assertNull(application.symphonyIfCreated)
-        start(RadioCommand.Resume)
+        start(PlaybackCommand.Resume)
         assertNotNull(application.symphonyIfCreated)
     }
 
     @Test
     fun resumeWithoutMusicFoldersSaysSoAndStops() {
-        val service = start(RadioCommand.Resume)
+        val service = start(PlaybackCommand.Resume)
         advanceUntil { service.shadow.isStoppedBySelf }
         assertEquals(AppStrings.CommandNoMediaFolders, text(status))
         assertNull(RadioNotificationService.instance)
@@ -135,7 +136,7 @@ class RadioNotificationServiceTest {
     @Test
     fun resumeWithAnEmptyLibrarySaysSoAndStops() {
         application.symphony.settings.mediaFolders.setValue(setOf(Uri.parse("content://docs/tree/none")))
-        val service = start(RadioCommand.Resume)
+        val service = start(PlaybackCommand.Resume)
         advanceUntil { service.shadow.isStoppedBySelf }
         assertEquals(AppStrings.CommandEmptyLibrary, text(status))
     }
@@ -151,7 +152,7 @@ class RadioNotificationServiceTest {
             RadioQueue.Serialized(0, 0L, listOf("a"), listOf("a"), false)
         )
 
-        start(RadioCommand.Resume)
+        start(PlaybackCommand.Resume)
         advanceUntil { symphony.radio.isPlaying }
 
         assertEquals("a", symphony.radio.queue.currentSongId)
@@ -193,11 +194,43 @@ class RadioNotificationServiceTest {
     }
 
     @Test
-    fun commandsNameTheirOwnActions() {
-        RadioCommand.entries.forEach {
-            assertEquals(it, RadioCommand.fromAction(it.action))
-        }
-        assertNull(RadioCommand.fromAction(null))
-        assertNull(RadioCommand.fromAction("something else"))
+    fun aFailedCommandLeavesPlayingMusicAlone() {
+        val symphony = application.symphony
+        val song = song("a")
+        allowPlayback(application, song)
+        symphony.settings.mediaFolders.setValue(setOf(Uri.parse("content://docs/tree/none")))
+        symphony.emitReady()
+        symphony.groove.onSongScanned(song)
+        symphony.radio.queue.add("a")
+        advanceUntil { symphony.radio.isPlaying }
+
+        val service = start(PlaybackCommand.PlayPlaylist("no-such-playlist"))
+        advanceUntil { status != null }
+
+        assertEquals(AppStrings.CommandPlaylistMissing, text(status))
+        assertTrue(symphony.radio.isPlaying)
+        assertFalse(service.shadow.isStoppedBySelf)
+    }
+
+    @Test
+    fun aCommandThatLeavesNoMusicLetsTheServiceGo() {
+        val service = start(PlaybackCommand.ClearSleepTimer)
+        advanceUntil { service.shadow.isStoppedBySelf }
+        assertNull(status)
+    }
+
+    @Test
+    fun commandsRunInOrder() {
+        val symphony = application.symphony
+        val songs = listOf("a", "b", "c").map { song(it) }
+        songs.forEach { allowPlayback(application, it) }
+        symphony.emitReady()
+        songs.forEach { symphony.groove.onSongScanned(it) }
+        symphony.radio.queue.add(songs.map { it.id })
+        advanceUntil { symphony.radio.isPlaying }
+
+        val service = start(PlaybackCommand.Next)
+        service.startAgain(PlaybackCommand.Next)
+        advanceUntil { symphony.radio.queue.currentSongId == "c" }
     }
 }

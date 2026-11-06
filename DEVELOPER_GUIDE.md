@@ -56,9 +56,9 @@ Launches the installed debug app.
 On first launch, the library is empty until you add a media folder (top-bar folder button or **Settings → Groove → Media folders**). The app reads music through the Storage Access Framework, not a storage permission.
 
 ```bash
-adb shell am start-foreground-service -n dev.anujyadav.harmoniq.debug/dev.anujyadav.harmoniq.services.radio.RadioNotificationService -a dev.anujyadav.harmoniq.radio.command.resume
+adb shell am start-foreground-service -n dev.anujyadav.harmoniq.debug/dev.anujyadav.harmoniq.services.radio.RadioNotificationService -a dev.anujyadav.harmoniq.playback.RUN -d harmoniq-command://resume
 ```
-Continues the saved queue with no activity open, like a widget will. Only debug builds export this service.
+Continues the saved queue with no activity open, like a widget will. Only debug builds export this service. The other commands are in `PlaybackCommand`, for example `harmoniq-command://next` or `harmoniq-command://shuffle_all`.
 
 ## The five things most likely to trip you up
 

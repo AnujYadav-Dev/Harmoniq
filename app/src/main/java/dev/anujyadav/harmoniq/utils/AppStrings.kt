@@ -407,6 +407,8 @@ object AppStrings {
     const val CommandLibraryStillLoading = "Your library is still loading, try again in a moment"
     const val CommandEmptyLibrary = "No songs found in your music folders"
     const val CommandNothingToResume = "Nothing to continue yet, open Harmoniq and pick a song"
+    const val CommandPlaylistMissing = "This playlist no longer exists"
+    const val CommandQueueItemGone = "This song is no longer in the queue"
     const val CommandPlaybackFailed = "Couldn't play your last songs, they may have been moved or deleted"
     const val GlobalSearchUnreachable =
         "Global Search can't reach its server right now. Your library, downloads and Watch List still work."

@@ -21,19 +21,19 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.anujyadav.harmoniq.services.groove.MediaExposer
-import dev.anujyadav.harmoniq.services.groove.Playlist
 import dev.anujyadav.harmoniq.ui.components.LoaderScaffold
 import dev.anujyadav.harmoniq.ui.components.NewPlaylistDialog
 import dev.anujyadav.harmoniq.ui.components.PlaylistGrid
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
-import dev.anujyadav.harmoniq.utils.ActivityUtils
 import dev.anujyadav.harmoniq.utils.AppStrings
 import dev.anujyadav.harmoniq.utils.Logger
+import kotlinx.coroutines.launch
 
 @Composable
 fun PlaylistsView(context: ViewContext) {
@@ -41,22 +41,23 @@ fun PlaylistsView(context: ViewContext) {
     val playlists by context.symphony.groove.playlist.all.collectAsState()
     val playlistsCount by context.symphony.groove.playlist.count.collectAsState()
     var showPlaylistCreator by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     val openPlaylistLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
-        uris.forEach { x ->
-            try {
-                ActivityUtils.makePersistableReadableUri(context.symphony.applicationContext, x)
-                val playlist = Playlist.parse(context.symphony, null, x)
-                context.symphony.groove.playlist.add(playlist)
-            } catch (err: Exception) {
-                Logger.error("PlaylistView", "import failed (activity result)", err)
-                Toast.makeText(
-                    context.symphony.applicationContext,
-                    AppStrings.InvalidM3UFile,
-                    Toast.LENGTH_LONG,
-                ).show()
+        coroutineScope.launch {
+            uris.forEach { x ->
+                try {
+                    context.symphony.groove.playlist.importFromUri(x)
+                } catch (err: Exception) {
+                    Logger.error("PlaylistView", "import failed (activity result)", err)
+                    Toast.makeText(
+                        context.symphony.applicationContext,
+                        AppStrings.InvalidM3UFile,
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
             }
         }
     }

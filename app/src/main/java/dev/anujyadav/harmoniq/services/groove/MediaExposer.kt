@@ -74,15 +74,21 @@ class MediaExposer(private val symphony: Symphony) {
             val context = symphony.applicationContext
             val folderUris = symphony.settings.mediaFolders.value
             val cycle = ScanCycle.create(symphony)
-            folderUris.map { x ->
-                ActivityUtils.makePersistableReadableUri(context, x)
-                DocumentFileX.fromTreeUri(context, x)?.let {
-                    val path = SimplePath(DocumentFileX.getParentPathOfTreeUri(x) ?: it.name)
-                    with(Dispatchers.IO) {
-                        scanMediaTree(cycle, path, it)
+            folderUris.forEach { x ->
+                // one unavailable folder must not cost the folders after it
+                try {
+                    ActivityUtils.makePersistableReadableUri(context, x)
+                    DocumentFileX.fromTreeUri(context, x)?.let {
+                        val path = SimplePath(DocumentFileX.getParentPathOfTreeUri(x) ?: it.name)
+                        with(Dispatchers.IO) {
+                            scanMediaTree(cycle, path, it)
+                        }
+                    } ?: run {
+                        Logger.warn("MediaExposer", "media folder unavailable: $x")
+                        cycle.isIncomplete = true
                     }
-                } ?: run {
-                    Logger.warn("MediaExposer", "media folder unavailable: $x")
+                } catch (err: Exception) {
+                    Logger.error("MediaExposer", "media folder unavailable: $x", err)
                     cycle.isIncomplete = true
                 }
             }

@@ -156,28 +156,40 @@ class PlaylistRepository(private val symphony: Symphony) {
         path = null,
     )
 
-    fun add(playlist: Playlist) {
+    private fun show(playlist: Playlist) {
         cache[playlist.id] = playlist
         _all.update {
             it.plusIfAbsent(playlist.id)
         }
         emitUpdateId()
         emitCount()
+    }
+
+    fun add(playlist: Playlist) {
+        show(playlist)
         symphony.groove.coroutineScope.launch {
             symphony.database.playlists.insert(playlist)
         }
     }
 
-    fun delete(id: String) {
-        Logger.error(
-            "PlaylistRepository",
-            "cache ${cache.containsKey(id)}"
-        )
-        cache.remove(id)?.uri?.let {
-            runCatching {
-                ActivityUtils.makePersistableReadableUri(symphony.applicationContext, it)
-            }
+    /**
+     * Adds the M3U file at [uri], throws when it can't be read or access to it can't be kept.
+     */
+    suspend fun importFromUri(uri: Uri) {
+        val playlist = Playlist.parse(symphony, null, uri)
+        // saved before taking the grant, see UriGrants
+        symphony.database.playlists.insert(playlist)
+        try {
+            ActivityUtils.makePersistableReadableUri(symphony.applicationContext, uri)
+        } catch (err: Exception) {
+            symphony.database.playlists.delete(playlist.id)
+            throw err
         }
+        show(playlist)
+    }
+
+    fun delete(id: String) {
+        cache.remove(id)
         _all.update {
             it - id
         }
@@ -187,6 +199,7 @@ class PlaylistRepository(private val symphony: Symphony) {
         emitCount()
         symphony.groove.coroutineScope.launch {
             symphony.database.playlists.delete(id)
+            symphony.groove.uriGrants.releaseUnused()
         }
     }
 

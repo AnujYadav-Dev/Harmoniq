@@ -35,7 +35,6 @@ import dev.anujyadav.harmoniq.ui.components.ScaffoldDialog
 import dev.anujyadav.harmoniq.ui.components.ScaffoldDialogDefaults
 import dev.anujyadav.harmoniq.ui.components.drawScrollBar
 import dev.anujyadav.harmoniq.ui.helpers.ViewContext
-import dev.anujyadav.harmoniq.utils.ActivityUtils
 import dev.anujyadav.harmoniq.utils.AppStrings
 
 @Composable
@@ -88,8 +87,8 @@ fun SettingsMultiSystemFolderDialog(
     val pickFolderLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
+        // the scan after saving takes the grant, so cancelling leaves nothing behind
         uri?.let { _ ->
-            ActivityUtils.makePersistableReadableUri(context.symphony.applicationContext, uri)
             if (!values.contains(uri)) {
                 values.add(uri)
             }

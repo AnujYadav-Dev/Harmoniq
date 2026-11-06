@@ -34,7 +34,6 @@ import android.net.Uri
 import dev.anujyadav.harmoniq.services.globalsearch.download.LibraryLink
 import dev.anujyadav.harmoniq.services.globalsearch.watchlist.WatchList
 import dev.anujyadav.harmoniq.services.groove.Groove
-import dev.anujyadav.harmoniq.utils.ActivityUtils
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -279,7 +278,6 @@ class GlobalSearch(private val symphony: Symphony) : Symphony.Hooks {
     val showLibraryPrompt = _showLibraryPrompt.asStateFlow()
 
     fun onLibraryFolderPicked(uri: Uri) {
-        ActivityUtils.makePersistableReadableUri(context, uri)
         symphony.settings.mediaFolders.setValue(symphony.settings.mediaFolders.value + uri)
         _showLibraryPrompt.value = false
         requestRescan()

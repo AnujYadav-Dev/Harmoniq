@@ -28,6 +28,13 @@ class MediaExposer(private val symphony: Symphony) {
     private val _isUpdating = MutableStateFlow(false)
     val isUpdating = _isUpdating.asStateFlow()
 
+    // scans wait on storage, so they stay off the shared CPU threads, but parsing can decode
+    // artwork: limited per device, as the IO threads alone would allow far too many at once
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val scanDispatcher = Dispatchers.IO.limitedParallelism(
+        Runtime.getRuntime().availableProcessors().coerceAtLeast(MIN_SCAN_PARALLELISM)
+    )
+
     private fun emitUpdate(value: Boolean) = _isUpdating.update {
         value
     }
@@ -67,7 +74,6 @@ class MediaExposer(private val symphony: Symphony) {
         }
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun fetch() {
         emitUpdate(true)
         try {
@@ -80,7 +86,7 @@ class MediaExposer(private val symphony: Symphony) {
                     ActivityUtils.makePersistableReadableUri(context, x)
                     DocumentFileX.fromTreeUri(context, x)?.let {
                         val path = SimplePath(DocumentFileX.getParentPathOfTreeUri(x) ?: it.name)
-                        with(Dispatchers.IO) {
+                        withContext(scanDispatcher) {
                             scanMediaTree(cycle, path, it)
                         }
                     } ?: run {
@@ -263,5 +269,8 @@ class MediaExposer(private val symphony: Symphony) {
 
     companion object {
         const val MIMETYPE_M3U = "audio/x-mpegurl"
+
+        // what the shared CPU threads, which scans used until now, guarantee as well
+        private const val MIN_SCAN_PARALLELISM = 2
     }
 }

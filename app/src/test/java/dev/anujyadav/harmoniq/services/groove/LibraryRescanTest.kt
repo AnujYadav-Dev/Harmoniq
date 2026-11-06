@@ -109,6 +109,77 @@ class LibraryRescanTest {
     }
 
     @Test
+    fun anArtistCountsEachAlbumOnce() {
+        groove.onSongScanned(song("a", album = "One"))
+        groove.onSongScanned(song("b", album = "One"))
+        groove.onSongScanned(song("c", album = "Two"))
+
+        assertEquals(2, groove.artist.values().single().numberOfAlbums)
+        assertEquals(2, groove.albumArtist.values().single().numberOfAlbums)
+    }
+
+    @Test
+    fun anArtistWithoutAlbumsCountsNone() {
+        groove.onSongScanned(song("a").copy(album = null))
+
+        assertEquals(0, groove.artist.values().single().numberOfAlbums)
+        assertEquals(0, groove.albumArtist.values().single().numberOfAlbums)
+    }
+
+    @Test
+    fun resetForgetsTheSongsOfArtists() {
+        groove.onSongScanned(song("a"))
+        groove.artist.reset()
+        groove.albumArtist.reset()
+
+        assertEquals(emptyList<String>(), groove.artist.getSongIds("Artist"))
+        assertEquals(emptyList<String>(), groove.artist.getAlbumIds("Artist"))
+        assertEquals(emptyList<String>(), groove.albumArtist.getSongIds("Album Artist"))
+        assertEquals(emptyList<String>(), groove.albumArtist.getAlbumIds("Album Artist"))
+    }
+
+    @Test
+    fun removingASongUpdatesItsAlbumDetails() {
+        val removed = song("a").copy(artists = setOf("Guest"), year = 1990)
+        groove.onSongScanned(removed)
+        groove.onSongScanned(song("b").copy(year = 2000))
+        groove.removeSong(removed)
+
+        val album = groove.album.values().single()
+        assertEquals(setOf("Album Artist", "Artist"), album.artists.toSet())
+        assertEquals(2000, album.startYear)
+        assertEquals(2000, album.endYear)
+    }
+
+    @Test
+    fun anUnreadablePlaylistDoesNotStopTheOthers() = runBlocking {
+        val broken = Playlist("a-broken", "Broken", emptyList(), Uri.parse("content://missing/file"), null)
+        val fine = Playlist("b-fine", "Fine", emptyList(), null, null)
+        symphony.database.playlists.insert(broken, fine)
+
+        groove.playlist.fetch()
+
+        assertNull(groove.playlist.get("a-broken"))
+        assertEquals("Fine", groove.playlist.get("b-fine")?.title)
+        assertEquals(true, groove.playlist.all.value.contains(groove.playlist.getFavorites().id))
+    }
+
+    @Test
+    fun aRescanKeepsPlaylistChangesNotSavedYet() = runBlocking {
+        val saved = Playlist("mix", "Mix", listOf("primary:Music/saved.mp3"), null, null)
+        symphony.database.playlists.insert(saved)
+        groove.playlist.fetch()
+        groove.onSongScanned(song("new"))
+
+        // what update() leaves until its background save has finished
+        groove.playlist.renamePlaylist(saved, "Renamed")
+        symphony.database.playlists.update(saved)
+        groove.playlist.fetch()
+
+        assertEquals("Renamed", groove.playlist.get("mix")?.title)
+    }
+
+    @Test
     fun countsMatchTheListsAfterAScan() {
         groove.onSongScanned(song("a", album = "One"))
         groove.onSongScanned(song("b", album = "Two"))

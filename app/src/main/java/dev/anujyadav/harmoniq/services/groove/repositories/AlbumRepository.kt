@@ -95,7 +95,18 @@ class AlbumRepository(private val symphony: Symphony) {
             songIdsCache.remove(albumId)
             _all.update { it - albumId }
             emitCount()
+            return
         }
+        // the removed song may have been the only one with some artist or year
+        val remaining = getSongIds(albumId).mapNotNull { symphony.groove.song.get(it) }
+        album.artists.clear()
+        remaining.forEach {
+            album.artists.addAll(it.albumArtists)
+            album.artists.addAll(it.artists)
+        }
+        val years = remaining.mapNotNull { it.year }
+        album.startYear = years.minOrNull()
+        album.endYear = years.maxOrNull()
     }
 
     fun reset() {

@@ -11,7 +11,6 @@ import dev.anujyadav.harmoniq.utils.Logger
 import dev.anujyadav.harmoniq.utils.mutate
 import dev.anujyadav.harmoniq.utils.plusIfAbsent
 import dev.anujyadav.harmoniq.utils.withCase
-import java.io.FileNotFoundException
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -69,27 +68,32 @@ class PlaylistRepository(private val symphony: Symphony) {
         try {
             val context = symphony.applicationContext
             val playlists = symphony.database.playlists.entries()
-            playlists.values.map { x ->
-                val playlist = when {
-                    x.isLocal -> {
-                        ActivityUtils.makePersistableReadableUri(context, x.uri!!)
-                        Playlist.parse(symphony, x.id, x.uri)
-                    }
+            playlists.values.forEach { x ->
+                // one unreadable file must not cost the playlists after it
+                try {
+                    val playlist = when {
+                        x.isLocal -> {
+                            ActivityUtils.makePersistableReadableUri(context, x.uri!!)
+                            Playlist.parse(symphony, x.id, x.uri)
+                        }
 
-                    else -> x
+                        // on a rescan the cache can be newer, its saves run in the background
+                        else -> cache[x.id] ?: x
+                    }
+                    cache[playlist.id] = playlist
+                    // fetch also runs on rescans that keep what is already loaded
+                    _all.update {
+                        it.plusIfAbsent(playlist.id)
+                    }
+                    emitUpdateId()
+                    emitCount()
+                } catch (err: Exception) {
+                    Logger.warn("PlaylistRepository", "loading playlist ${x.id} failed", err)
                 }
-                cache[playlist.id] = playlist
-                // fetch also runs on rescans that keep what is already loaded
-                _all.update {
-                    it.plusIfAbsent(playlist.id)
-                }
-                emitUpdateId()
-                emitCount()
             }
             if (!cache.containsKey(FAVORITE_PLAYLIST)) {
                 add(getFavorites())
             }
-        } catch (_: FileNotFoundException) {
         } catch (err: Exception) {
             Logger.error("PlaylistRepository", "fetch failed", err)
         }

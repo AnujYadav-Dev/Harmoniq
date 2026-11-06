@@ -45,13 +45,12 @@ class AlbumArtistRepository(private val symphony: Symphony) {
             songIdsCache.compute(albumArtist) { _, value ->
                 value?.apply { add(song.id) } ?: concurrentSetOf(song.id)
             }
-            var nNumberOfAlbums = 0
             symphony.groove.album.getIdFromSong(song)?.let { albumId ->
                 albumIdsCache.compute(albumArtist) { _, value ->
-                    nNumberOfAlbums = (value?.size ?: 0) + 1
                     value?.apply { add(albumId) } ?: concurrentSetOf(albumId)
                 }
             }
+            val nNumberOfAlbums = albumIdsCache[albumArtist]?.size ?: 0
             cache.compute(albumArtist) { _, value ->
                 value?.apply {
                     numberOfAlbums = nNumberOfAlbums
@@ -62,7 +61,7 @@ class AlbumArtistRepository(private val symphony: Symphony) {
                     }
                     AlbumArtist(
                         name = albumArtist,
-                        numberOfAlbums = 1,
+                        numberOfAlbums = nNumberOfAlbums,
                         numberOfTracks = 1,
                     )
                 }
@@ -98,6 +97,8 @@ class AlbumArtistRepository(private val symphony: Symphony) {
 
     fun reset() {
         cache.clear()
+        songIdsCache.clear()
+        albumIdsCache.clear()
         _all.update {
             emptyList()
         }

@@ -11,7 +11,7 @@
 | Android SDK Platform | API 35 | `compileSdk = 35` |
 | Android SDK Build-Tools | Installed automatically by Gradle | |
 | Android SDK Platform-Tools | Latest | Provides `adb` |
-| **NDK (Side by side)** | **27.0.12077973** | Default NDK for AGP 8.13; used to build `:metaphony` |
+| **NDK (Side by side)** | **27.0.12077973** | Default NDK for AGP 8.13; used to build `:metaphony`. This NDK needs `-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON` for 16 KB page support, which `metaphony/build.gradle.kts` passes |
 | **CMake** | **3.22.1** | Pinned in `metaphony/build.gradle.kts` |
 | Gradle | 8.13 | Downloaded automatically by `gradlew`, no install needed |
 | Git | any | |

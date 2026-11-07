@@ -29,7 +29,7 @@ Detailed topics live in [`docs/`](docs/):
 | Min / target / compile SDK | 28 (Android 9) / 34 (Android 14) / 35 | `gradle/libs.versions.toml` |
 | Gradle / AGP / Kotlin | 8.13 / 8.13.2 / 2.1.0 | `gradle/wrapper/gradle-wrapper.properties`, `gradle/libs.versions.toml` |
 | JDK | 17 | `app/build.gradle.kts` (`JavaVersion.VERSION_17`) |
-| Native toolchain | NDK `27.0.12077973` (AGP default), CMake `3.22.1` | `metaphony/build.gradle.kts` |
+| Native toolchain | NDK `27.0.12077973` (AGP default), CMake `3.22.1`, 16 KB page support on | `metaphony/build.gradle.kts` |
 | Modules | `:app` (the app), `:metaphony` (C++/TagLib metadata parser) | `settings.gradle.kts` |
 | Release signing | Environment variables `SIGNING_*` | `app/build.gradle.kts` |
 | Global Search server | Chosen at runtime: the default server from [`config/global-search.json`](config/global-search.json) on GitHub, or the user's own server in Settings. `HARMONIQ_SERVER_URL` / `HARMONIQ_APP_TOKEN` are only a built-in fallback | `config/global-search.json`; fallback keys in `local.properties` or env vars |

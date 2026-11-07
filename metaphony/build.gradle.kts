@@ -15,6 +15,9 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags("")
+                // 64-bit libraries must load on 16 KB page devices. NDK r28+ does this by default,
+                // so this line can go when the project moves to one
+                arguments("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
             }
         }
     }

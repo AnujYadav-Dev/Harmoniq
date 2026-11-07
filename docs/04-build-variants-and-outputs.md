@@ -86,3 +86,21 @@ Prints the package name, versionCode/versionName, min/target SDK and native ABIs
 "<sdk>/build-tools/<version>/apksigner" verify --print-certs app/build/outputs/apk/release/app-universal-release.apk
 ```
 Verifies the APK signature and prints the signing certificate. Use it to confirm a release APK is signed with the release key and not the debug key.
+
+### Checking 16 KB page support
+
+Some newer 64-bit phones use 16 KB memory pages. On them, a native library that isn't 16 KB aligned fails to load. Harmoniq opens fine and then crashes on the first media scan, because `libmetaphony.so` only loads when a song is read. A phone with 4 KB pages can't show this problem (`adb shell getconf PAGE_SIZE` prints `4096`).
+
+`:app:lintRelease` and `:app:lintDebug` fail if an `arm64-v8a` library isn't aligned (`Aligned16KB`). To check a built APK by hand:
+
+```bash
+"<sdk>/build-tools/<version>/zipalign" -c -P 16 -v 4 app/build/outputs/apk/release/app-universal-release.apk
+```
+Checks that the libraries sit on a 16 KB boundary inside the APK. It must end with `Verification successful`. It doesn't look inside the libraries, so also run the next command. Needs Build-Tools 35 or newer.
+
+```bash
+"<sdk>/ndk/27.0.12077973/toolchains/llvm/prebuilt/windows-x86_64/bin/llvm-readelf" -lW <extracted>/lib/arm64-v8a/libmetaphony.so
+```
+Lists the library's segments. Every `LOAD` line must end in `0x4000` for `arm64-v8a` and `x86_64`. `armeabi-v7a` and `x86` stay at `0x1000`, which is fine: 16 KB devices are 64-bit only. Extract the APK first; it is a zip file.
+
+To run it for real, use an emulator with a `Google APIs Experimental 16 KB Page Size` system image (SDK Manager → SDK Platforms → Show Package Details), and add a media folder so a scan runs.

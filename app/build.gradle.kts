@@ -135,6 +135,11 @@ android {
         includeInBundle = false
     }
 
+    lint {
+        // a library that isn't 16 KB aligned crashes the app on 16 KB page devices
+        error += "Aligned16KB"
+    }
+
     testOptions {
         // Robolectric (worker tests) needs the merged resources and manifest
         unitTests.isIncludeAndroidResources = true

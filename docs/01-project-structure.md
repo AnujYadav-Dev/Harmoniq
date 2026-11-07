@@ -34,7 +34,7 @@ Harmoniq/
 │   └── .cxx/                    # CMake/Ninja intermediate build files (git-ignored)
 ├── gradle/
 │   ├── libs.versions.toml       # Version catalog: ALL dependency, plugin and SDK versions
-│   └── wrapper/                 # Gradle wrapper (pins Gradle 8.10.2)
+│   └── wrapper/                 # Gradle wrapper (pins Gradle 8.13)
 ├── build.gradle.kts             # Root build file (declares plugins, applies none)
 ├── settings.gradle.kts          # Module list + repositories (google, mavenCentral)
 ├── gradle.properties            # JVM memory for Gradle, AndroidX flags

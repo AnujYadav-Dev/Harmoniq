@@ -6,14 +6,14 @@
 
 | Tool | Version required by this project | Notes |
 |------|-------------------------------|-------|
-| Android Studio | Ladybug (2024.2) or newer | Needed for Android Gradle Plugin 8.7.3 |
+| Android Studio | Narwhal 3 Feature Drop (2025.1.3) or newer | Needed for Android Gradle Plugin 8.13 |
 | JDK | 17+ | Android Studio's bundled JBR works; the code compiles to Java 17 bytecode |
 | Android SDK Platform | API 35 | `compileSdk = 35` |
 | Android SDK Build-Tools | Installed automatically by Gradle | |
 | Android SDK Platform-Tools | Latest | Provides `adb` |
-| **NDK (Side by side)** | **27.0.12077973** | Default NDK for AGP 8.7.3; used to build `:metaphony` |
+| **NDK (Side by side)** | **27.0.12077973** | Default NDK for AGP 8.13; used to build `:metaphony` |
 | **CMake** | **3.22.1** | Pinned in `metaphony/build.gradle.kts` |
-| Gradle | 8.10.2 | Downloaded automatically by `gradlew`, no install needed |
+| Gradle | 8.13 | Downloaded automatically by `gradlew`, no install needed |
 | Git | any | |
 
 You do **not** need to install Gradle or Kotlin separately. The wrapper (`gradlew`) and the Gradle plugins handle that.
@@ -25,8 +25,8 @@ Install the latest stable Android Studio. On first launch, let the setup wizard 
 ## 2. Open the project
 
 1. **File → Open…** and select the `Harmoniq/` folder (the one containing `settings.gradle.kts`). Do not select the `app/` folder.
-2. Android Studio creates `local.properties` with `sdk.dir=…` and starts a **Gradle sync** (bottom status bar). The first sync downloads Gradle 8.10.2 and all dependencies, so it takes a while.
-3. If prompted to "upgrade the Android Gradle Plugin", **decline**. The project pins AGP 8.7.3 in `gradle/libs.versions.toml`, and upgrades should be deliberate commits.
+2. Android Studio creates `local.properties` with `sdk.dir=…` and starts a **Gradle sync** (bottom status bar). The first sync downloads Gradle 8.13 and all dependencies, so it takes a while.
+3. If prompted to "upgrade the Android Gradle Plugin", **decline**. The project pins AGP 8.13.2 in `gradle/libs.versions.toml`, and upgrades should be deliberate commits.
 
 ## 3. Install SDK components
 

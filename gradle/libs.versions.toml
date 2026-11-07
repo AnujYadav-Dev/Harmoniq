@@ -29,7 +29,7 @@ youtube-player = "13.1.0"
 robolectric = "4.17"
 androidx-test-core = "1.7.0"
 
-android-gradle-plugin = "8.7.3"
+android-gradle-plugin = "8.13.2"
 kotlin-gradle-plugin = "2.1.0"
 kotlin-serialization-plugin = "2.1.0"
 ksp-plugin = "2.1.0-1.0.29"

@@ -130,20 +130,6 @@ android {
         }
     }
 
-    lint {
-        // lifecycle 2.9.x (via android-youtube-player) ships this check built for a newer lint;
-        // it crashes AGP 8.7's lint. The app has no LiveData, so nothing is lost. Drop after an AGP upgrade.
-        disable += "NullSafeMutableLiveData"
-
-        // Compose 1.9's lint rules are built for a newer lint than AGP 8.7's. These three crash it,
-        // the last one misreads the code and reports produceState calls that do assign value.
-        // Drop all four after an AGP upgrade.
-        disable += "FrequentlyChangingValue"
-        disable += "RememberInComposition"
-        disable += "AutoboxingStateCreation"
-        disable += "ProduceStateDoesNotAssignValue"
-    }
-
     dependenciesInfo {
         includeInApk = false
         includeInBundle = false

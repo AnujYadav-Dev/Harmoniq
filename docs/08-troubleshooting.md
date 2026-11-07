@@ -25,7 +25,7 @@ Gradle is running on the wrong JDK.
 - Terminal: point `JAVA_HOME` at a JDK 17+ (see [Environment setup](02-environment-setup.md#4-check-the-gradle-jdk)), then run `./gradlew --stop` so the old daemon goes away.
 
 ### Android Studio says the AGP version is incompatible / offers an upgrade
-Your Android Studio is older than AGP 8.7.3 supports. Update Android Studio rather than downgrading the plugin. Decline the "AGP Upgrade Assistant" unless you intend to commit an upgrade.
+Your Android Studio is older than AGP 8.13 supports. Update Android Studio rather than downgrading the plugin. Decline the "AGP Upgrade Assistant" unless you intend to commit an upgrade.
 
 ### Gradle sync fails after pulling changes
 ```bash

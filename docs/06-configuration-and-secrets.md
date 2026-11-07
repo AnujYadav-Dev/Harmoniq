@@ -11,7 +11,7 @@
 | `metaphony/build.gradle.kts` | ✅ | Native library config, CMake version |
 | `settings.gradle.kts` | ✅ | Module list (`:app`, `:metaphony`) and repositories |
 | `gradle.properties` | ✅ | Gradle JVM memory (`-Xmx2048m`), `android.useAndroidX`, `nonTransitiveRClass` |
-| `gradle/wrapper/gradle-wrapper.properties` | ✅ | Pins Gradle 8.10.2 |
+| `gradle/wrapper/gradle-wrapper.properties` | ✅ | Pins Gradle 8.13 |
 | `app/proguard-rules.pro` | ✅ | R8 keep-rules for release-type builds |
 | `app/room-schemas/**` | ✅ | Room schema history (needed for migrations) |
 | `local.properties` | ❌ | `sdk.dir` = your Android SDK path. Created by Android Studio; machine-specific. Also holds the Global Search server URL and app token (see below) |

@@ -240,7 +240,7 @@ All paths are under `app/src/main/java/dev/anujyadav/harmoniq/`.
 | `ui/view/settings/GlobalSearchSettingsView.kt`, `GlobalSearchServerSettings.kt` | **Settings → Global search** and its **Server** section |
 | `ui/view/SearchTabContent.kt` | The Library / Global switch |
 
-Build and config: `app/build.gradle.kts` (keys, `lint {}` exceptions), `app/src/debug/` (cleartext for debug),
+Build and config: `app/build.gradle.kts` (keys), `app/src/debug/` (cleartext for debug),
 `app/src/main/AndroidManifest.xml` (`FOREGROUND_SERVICE_DATA_SYNC`, `WRITE_EXTERNAL_STORAGE` up to API 28,
 WorkManager's foreground service). Tests: `app/src/test/java/dev/anujyadav/harmoniq/services/globalsearch/`, with
 server JSON fixtures in `app/src/test/resources/globalsearch/`. Design record and deviations:
@@ -251,5 +251,4 @@ server JSON fixtures in `app/src/test/resources/globalsearch/`. Design record an
 1. Build a **signed canary**, install it on an Android 9 (API 28) and an Android 14 (API 34) device or emulator, and
    run the [test matrix](https://github.com/AnujYadav-Dev/Harmoniq-server/blob/main/docs/android-integration-plan.md#16-validating-the-complete-flow-before-testers-get-it).
 2. Test a signed `release` build the same way (R8).
-3. After an AGP upgrade: move WorkManager past 2.10.x (2.11+ needs Room 2.7) and drop the lint exceptions
-   in `app/build.gradle.kts`.
+3. Move WorkManager past 2.10.x (2.11+ needs Room 2.7).

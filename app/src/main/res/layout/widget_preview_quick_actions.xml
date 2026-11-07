@@ -10,7 +10,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:contentDescription="@null"
-            android:padding="12dp"
+            android:padding="8dp"
             android:src="@drawable/material_icon_shuffle"
             android:tint="@color/widget_preview_on_surface" />
         <ImageView

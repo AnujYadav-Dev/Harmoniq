@@ -4,11 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.glance.ColorFilter
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
-import androidx.glance.Image
-import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.LocalSize
 import androidx.glance.action.clickable
@@ -28,11 +25,11 @@ import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.padding
-import androidx.glance.layout.size
 import androidx.glance.layout.width
 import dev.anujyadav.harmoniq.R
 import dev.anujyadav.harmoniq.services.playback.PlaybackCommand
 import dev.anujyadav.harmoniq.services.playback.PlaybackSnapshot
+import dev.anujyadav.harmoniq.services.playback.WidgetCover
 import dev.anujyadav.harmoniq.utils.AppStrings
 
 internal object LibraryWidgetDimens {
@@ -40,25 +37,33 @@ internal object LibraryWidgetDimens {
     val RowPadding = 6.dp
     val RowSpacing = 4.dp
     val RowRadius = 12.dp
-    val IconSize = 20.dp
+    val CoverSize = 40.dp
     val Sizes = setOf(DpSize(180.dp, 110.dp))
     val PlaylistSizeOneColumn = DpSize(180.dp, 110.dp)
-    val PlaylistSizeTwoColumns = DpSize(250.dp, 110.dp)
+    val PlaylistSizeTwoColumns = DpSize(300.dp, 110.dp)
     val PlaylistSizes = setOf(PlaylistSizeOneColumn, PlaylistSizeTwoColumns)
 }
 
-/** Two tiles side by side leave a narrow widget no room for a playlist's name. */
+/** Two tiles side by side, each with its cover, leave a narrow widget no room for a playlist's name. */
 internal fun playlistColumns(widgetWidth: Dp) = when {
     widgetWidth >= LibraryWidgetDimens.PlaylistSizeTwoColumns.width -> 2
     else -> 1
 }
 
+private fun listCoversOf(of: (PlaybackSnapshot) -> List<WidgetCover?>) = { density: Float ->
+    ListCovers(
+        sizePx = (LibraryWidgetDimens.CoverSize.value * density).toInt(),
+        of = { snapshot -> of(snapshot).filterNotNull() },
+    )
+}
+
 /*
- * These show text and no artwork: a list can hold many rows, and each image would take its share
- * of what Android lets a widget send, on every update.
+ * Every row's image goes out with every update of the widget, so these are kept as small as
+ * they're shown. PlaybackArtwork makes sure all of them together stay within Android's limit.
  */
 internal class PlaylistShortcutsWidget : PlaybackWidget(artworkSizeDp = null) {
     override val sizes get() = LibraryWidgetDimens.PlaylistSizes
+    override val listCovers = listCoversOf { snapshot -> snapshot.playlists.map { it.cover } }
 
     @Composable
     override fun Content(state: PlaybackWidgetState) = PlaylistShortcutsContent(state)
@@ -66,6 +71,7 @@ internal class PlaylistShortcutsWidget : PlaybackWidget(artworkSizeDp = null) {
 
 internal class UpNextWidget : PlaybackWidget(artworkSizeDp = null) {
     override val sizes get() = LibraryWidgetDimens.Sizes
+    override val listCovers = listCoversOf { snapshot -> snapshot.queue.map { it.cover } }
 
     @Composable
     override fun Content(state: PlaybackWidgetState) = UpNextContent(state)
@@ -73,6 +79,7 @@ internal class UpNextWidget : PlaybackWidget(artworkSizeDp = null) {
 
 internal class SuggestedWidget : PlaybackWidget(artworkSizeDp = null) {
     override val sizes get() = LibraryWidgetDimens.Sizes
+    override val listCovers = listCoversOf { snapshot -> snapshot.suggestions.map { it.cover } }
 
     @Composable
     override fun Content(state: PlaybackWidgetState) = SuggestedContent(state)
@@ -153,9 +160,20 @@ private fun CommandRow(
 }
 
 @Composable
-private fun SongRow(item: PlaybackSnapshot.Item, command: PlaybackCommand) {
+private fun RowScope.RowCover(state: PlaybackWidgetState, cover: WidgetCover?) {
+    CoverImage(
+        cover = cover?.let { state.covers[it] },
+        size = LibraryWidgetDimens.CoverSize,
+        tileColor = GlanceTheme.colors.surface,
+    )
+    Spacer(GlanceModifier.width(WidgetDimens.Spacing))
+}
+
+@Composable
+private fun SongRow(state: PlaybackWidgetState, item: PlaybackSnapshot.Item, command: PlaybackCommand) {
     CommandRow(command) {
-        Column(modifier = GlanceModifier.fillMaxWidth()) {
+        RowCover(state, item.cover)
+        Column(modifier = GlanceModifier.defaultWeight()) {
             WidgetTitle(item.title)
             WidgetSubtitle(item.artist)
         }
@@ -173,7 +191,7 @@ internal fun PlaylistShortcutsContent(state: PlaybackWidgetState) {
                 modifier = GlanceModifier.fillMaxSize(),
             ) {
                 items(snapshot.playlists, itemId = { it.id.hashCode().toLong() }) { playlist ->
-                    PlaylistTile(playlist)
+                    PlaylistTile(state, playlist)
                 }
             }
 
@@ -185,15 +203,9 @@ internal fun PlaylistShortcutsContent(state: PlaybackWidgetState) {
 }
 
 @Composable
-private fun PlaylistTile(playlist: PlaybackSnapshot.PlaylistItem) {
+private fun PlaylistTile(state: PlaybackWidgetState, playlist: PlaybackSnapshot.PlaylistItem) {
     CommandRow(PlaybackCommand.PlayPlaylist(playlist.id), sideGap = LibraryWidgetDimens.RowSpacing / 2) {
-        Image(
-            provider = ImageProvider(R.drawable.material_icon_music_note),
-            contentDescription = null,
-            colorFilter = ColorFilter.tint(GlanceTheme.colors.primary),
-            modifier = GlanceModifier.size(LibraryWidgetDimens.IconSize),
-        )
-        Spacer(GlanceModifier.width(LibraryWidgetDimens.RowSpacing))
+        RowCover(state, playlist.cover)
         Column(modifier = GlanceModifier.defaultWeight()) {
             WidgetTitle(playlist.title)
             WidgetSubtitle(AppStrings.XSongs(playlist.songCount.toString()))
@@ -211,6 +223,7 @@ internal fun UpNextContent(state: PlaybackWidgetState) {
                 // the same song can be queued twice, its place in the queue is what's unique
                 items(queue, itemId = { (it.queueIndex ?: it.path.hashCode()).toLong() }) { item ->
                     SongRow(
+                        state,
                         item,
                         PlaybackCommand.JumpToQueueItem(item.queueIndex ?: NOT_IN_QUEUE, item.path),
                     )
@@ -240,7 +253,7 @@ internal fun SuggestedContent(state: PlaybackWidgetState) {
         when {
             snapshot.suggestions.isNotEmpty() -> LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
                 items(snapshot.suggestions, itemId = { it.path.hashCode().toLong() }) { item ->
-                    SongRow(item, PlaybackCommand.PlaySong(item.path))
+                    SongRow(state, item, PlaybackCommand.PlaySong(item.path))
                 }
             }
 

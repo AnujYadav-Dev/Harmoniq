@@ -5,7 +5,8 @@
     android:viewportWidth="250"
     android:viewportHeight="130">
     <path android:fillColor="@color/widget_preview_surface" android:pathData="M0,0h250v130h-250z" />
-    <path android:fillColor="@color/widget_preview_on_surface_variant" android:pathData="M75,38h100v6h-100z" />
-    <path android:fillColor="@color/widget_preview_primary" android:pathData="M45,60h160v10h-160z" />
-    <path android:fillColor="@color/widget_preview_on_surface_variant" android:pathData="M70,86h110v6h-110z" />
+    <path android:fillColor="@color/widget_preview_art" android:pathData="M8,29h72v72h-72z" />
+    <path android:fillColor="@color/widget_preview_on_surface_variant" android:pathData="M90,42h100v6h-100z" />
+    <path android:fillColor="@color/widget_preview_primary" android:pathData="M90,60h146v10h-146z" />
+    <path android:fillColor="@color/widget_preview_on_surface_variant" android:pathData="M90,82h110v6h-110z" />
 </vector>

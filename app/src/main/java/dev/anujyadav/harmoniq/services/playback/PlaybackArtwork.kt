@@ -39,6 +39,13 @@ object PlaybackArtwork {
         return decode(path, side) ?: decodePlaceholder(context, side)
     }
 
+    /** Like [load], but with no placeholder: for lists, which have a lighter one of their own. */
+    @WorkerThread
+    fun loadCover(context: Context, path: String, sizePx: Int, imagesInWidget: Int): Bitmap? {
+        val metrics = context.resources.displayMetrics
+        return decode(path, maxSide(sizePx, metrics.widthPixels, metrics.heightPixels, imagesInWidget))
+    }
+
     private fun decode(path: String?, side: Int): Bitmap? {
         val file = path?.let { File(it) }?.takeIf { it.exists() } ?: return null
         return try {

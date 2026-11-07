@@ -149,7 +149,7 @@ class WidgetSizingTest {
     @Test
     fun aTallWidgetGetsTheLargeArtwork() {
         for (width in 280..800 step 20) {
-            for (height in 140..600 step 10) {
+            for (height in PlayerSizes.Tall.height.value.toInt()..600 step 10) {
                 assertEquals(PlayerSizes.Tall, chosen(DpSize(width.dp, height.dp), PlayerSizes.All))
             }
         }
@@ -161,13 +161,15 @@ class WidgetSizingTest {
         val play = PlayButtonSize.value
         val tight = TightPadding.value * 2
         val sides = ContentPadding.value * 2
+        val belowTheSong = ProgressHeight.value + ProgressGap.value + play
 
         // heights
         assertTrue(play + tight <= PlayerSizes.Bar.height.value)
         assertTrue(ArtworkBarSize.value + tight <= PlayerSizes.Bar.height.value)
-        assertTrue(control + ProgressHeight.value + play + tight <= PlayerSizes.Full.height.value)
+        assertTrue(ArtworkBarSize.value + SongToProgressGap.value + belowTheSong <= PlayerSizes.Full.height.value)
+        assertTrue(control + SongToProgressGap.value + belowTheSong <= PlayerSizes.Full.height.value)
         assertTrue(
-            ArtworkFullSize.value + ProgressHeight.value + play + tight <= PlayerSizes.Tall.height.value,
+            ArtworkFullSize.value + TallSongToProgressGap.value + belowTheSong <= PlayerSizes.Tall.height.value,
         )
         assertTrue(play <= QuickActionSizes.Single.height.value)
         assertTrue(play <= AlbumArtSizes.Small.height.value - sides)
@@ -187,6 +189,30 @@ class WidgetSizingTest {
     fun everyTargetIsBigEnoughToTouch() = with(WidgetDimens) {
         assertTrue(ControlSize >= MIN_TOUCH_TARGET)
         assertTrue(PlayButtonSize >= MIN_TOUCH_TARGET)
+    }
+
+    @Test
+    fun theLyricsCoverFitsEverySizeItIsChosenFor() {
+        LyricsWidgetSizes.All.forEach { size ->
+            lyricsLayoutOf(size).coverSize?.let { cover ->
+                assertTrue("$size", cover.value + WidgetDimens.ContentPadding.value * 2 <= size.height.value)
+                assertTrue("$size", cover.value < size.width.value / 2)
+            }
+        }
+    }
+
+    @Test
+    fun aBigLyricsWidgetIsGivenTheBigLayout() {
+        for (width in 320..800 step 20) {
+            for (height in 200..600 step 10) {
+                assertEquals(LyricsWidgetSizes.Huge, chosen(DpSize(width.dp, height.dp), LyricsWidgetSizes.All))
+            }
+        }
+    }
+
+    @Test
+    fun aNarrowLyricsWidgetKeepsAllItsWidthForTheWords() {
+        assertEquals(null, lyricsLayoutOf(LyricsWidgetSizes.Narrow).coverSize)
     }
 
     @Test

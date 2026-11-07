@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.os.Build
 import androidx.annotation.DrawableRes
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.ColorFilter
@@ -43,16 +44,24 @@ internal object WidgetDimens {
     val TightPadding = 4.dp
     val Spacing = 8.dp
 
-    // 48dp is the smallest comfortable touch target, the icon inside stays at 24dp
+    // 48dp is the smallest comfortable touch target
     val ControlSize = 48.dp
-    val ControlIconPadding = 12.dp
+    val ControlIconPadding = 8.dp
     val PlayButtonSize = 48.dp
     val PlayButtonIconPadding = 10.dp
     val ArtworkRadius = 12.dp
     val ArtworkBarSize = 48.dp
-    val ArtworkFullSize = 72.dp
+    val ArtworkFullSize = 64.dp
     val ArtworkPlaceholderSize = 48.dp
+    val CoverRadius = 8.dp
     val ProgressHeight = 4.dp
+
+    // the full player: a button is flush with the edge, as what's seen is the icon inside it.
+    // The inset brings the artwork and the progress bar in line with where that icon starts
+    val FullPlayerIconEdgeInset = 14.dp
+    val SongToProgressGap = 4.dp
+    val TallSongToProgressGap = 8.dp
+    val ProgressGap = 6.dp
     val TitleFontSize = 14.sp
     val SubtitleFontSize = 12.sp
 }
@@ -110,6 +119,37 @@ internal fun WidgetArtwork(
         contentScale = ContentScale.Crop,
         modifier = modifier,
     )
+}
+
+/**
+ * A cover next to text, or a music note on a tile when there's none. Nothing is said about it by
+ * default: the song's name is right there, a description would only read it out twice.
+ */
+@Composable
+internal fun CoverImage(
+    cover: Bitmap?,
+    size: Dp,
+    tileColor: ColorProvider,
+    description: String? = null,
+) {
+    val shape = GlanceModifier.size(size).cornerRadius(WidgetDimens.CoverRadius)
+    if (cover != null) {
+        Image(
+            provider = ImageProvider(cover),
+            contentDescription = description,
+            contentScale = ContentScale.Crop,
+            modifier = shape,
+        )
+        return
+    }
+    Box(modifier = shape.background(tileColor), contentAlignment = Alignment.Center) {
+        Image(
+            provider = ImageProvider(R.drawable.material_icon_music_note),
+            contentDescription = description,
+            colorFilter = ColorFilter.tint(GlanceTheme.colors.primary),
+            modifier = GlanceModifier.size(size / 2),
+        )
+    }
 }
 
 @Composable

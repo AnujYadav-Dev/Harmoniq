@@ -4,10 +4,10 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.compose.ui.unit.DpSize
-import androidx.compose.ui.unit.dp
 import androidx.glance.appwidget.testing.unit.GlanceAppWidgetUnitTest
 import androidx.glance.appwidget.testing.unit.hasStartActivityClickAction
 import androidx.glance.appwidget.testing.unit.runGlanceAppWidgetUnitTest
+import androidx.glance.testing.unit.hasContentDescriptionEqualTo
 import androidx.glance.testing.unit.hasTextEqualTo
 import androidx.test.core.app.ApplicationProvider
 import dev.anujyadav.harmoniq.HarmoniqActivity
@@ -40,9 +40,10 @@ class LyricsWidgetContentTest {
     private fun widget(
         content: LyricsWidgetContent,
         isEnabled: Boolean = true,
+        size: DpSize = LyricsWidgetSizes.Wide,
         test: GlanceAppWidgetUnitTest.() -> Unit,
     ) = runGlanceAppWidgetUnitTest {
-        setAppWidgetSize(DpSize(250.dp, 110.dp))
+        setAppWidgetSize(size)
         setContext(application)
         val state = LyricsWidgetState(content, isEnabled, WidgetAppearance(ThemeMode.SYSTEM, true, null))
         provideComposable { LyricsContent(state) }
@@ -56,6 +57,40 @@ class LyricsWidgetContentTest {
         shows("One")
         shows("Two")
         shows("Three")
+    }
+
+    private val artwork = AppStrings.ArtworkOfX("Song")
+    private val full = LyricsWidgetContent(Kind.Synced, "Song", "One", "Two", "Three", songArtist = "Artist")
+
+    @Test
+    fun theCoverFillsTheRoomOfAWideWidget() = widget(full) {
+        onNode(hasContentDescriptionEqualTo(artwork)).assertExists()
+        onNode(hasTextEqualTo("Song")).assertDoesNotExist()
+    }
+
+    @Test
+    fun aNarrowWidgetIsOnlyTheWords() = widget(full, size = LyricsWidgetSizes.Narrow) {
+        onNode(hasContentDescriptionEqualTo(artwork)).assertDoesNotExist()
+        shows("Two")
+    }
+
+    @Test
+    fun aLargeWidgetNamesTheSong() = widget(full, size = LyricsWidgetSizes.Large) {
+        shows("Song")
+        onNode(hasTextEqualTo("Artist")).assertDoesNotExist()
+        shows("Two")
+    }
+
+    @Test
+    fun aHugeWidgetNamesTheArtistToo() = widget(full, size = LyricsWidgetSizes.Huge) {
+        shows("Song")
+        shows("Artist")
+    }
+
+    @Test
+    fun withoutASongThereIsNoCover() = widget(LyricsWidgetContent(), size = LyricsWidgetSizes.Huge) {
+        onNode(hasContentDescriptionEqualTo(artwork)).assertDoesNotExist()
+        shows(AppStrings.LyricsWidgetIdle)
     }
 
     @Test

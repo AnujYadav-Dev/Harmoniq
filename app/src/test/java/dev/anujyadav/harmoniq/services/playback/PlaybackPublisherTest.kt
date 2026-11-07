@@ -12,6 +12,7 @@ import dev.anujyadav.harmoniq.services.radio.RadioTestSupport.allowPlayback
 import dev.anujyadav.harmoniq.services.radio.RadioTestSupport.song
 import dev.anujyadav.harmoniq.services.radio.ShadowPlayableMediaPlayer
 import dev.anujyadav.harmoniq.ui.theme.ThemeMode
+import java.io.File
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.toJavaDuration
@@ -72,6 +73,7 @@ class PlaybackPublisherTest {
 
     private companion object {
         const val BACKGROUND_SETTLE_MS = 250L
+        val UNSAFE = Regex("[^A-Za-z0-9._-]")
     }
 
     @Test
@@ -205,6 +207,37 @@ class PlaybackPublisherTest {
         advanceUntil { store.read().playlists.any { it.id == mix.id } }
         assertTrue(store.read().isLibraryLoaded)
         assertEquals("Mix", store.read().playlists.single { it.id == mix.id }.title)
+    }
+
+    @Test
+    fun aPlaylistShowsItsFirstSongsCoverUnlessItHasItsOwn() {
+        val first = song("a").copy(coverFile = "a.jpg")
+        symphony.groove.onSongScanned(first)
+        val mix = symphony.groove.playlist.create("Mix", listOf(first.id))
+        symphony.groove.playlist.add(mix)
+        symphony.groove.readyDeferred.complete(true)
+        advance(interval)
+        advanceUntil { store.read().playlists.any { it.id == mix.id } }
+        val fromSong = store.read().playlists.single { it.id == mix.id }
+        assertEquals(symphony.database.artworkCache.get("a.jpg").absolutePath, fromSong.artworkPath)
+        assertEquals(0L, fromSong.artworkVersion)
+
+        val own = File(application.filesDir, "playlist_covers/${mix.id.replace(UNSAFE, "_")}.jpg")
+        own.parentFile!!.mkdirs()
+        own.writeText("a picture")
+        symphony.groove.playlist.update(mix.id, listOf(first.id, first.id))
+        advance(interval)
+        advanceUntil { store.read().playlists.single { it.id == mix.id }.artworkPath == own.absolutePath }
+    }
+
+    @Test
+    fun aPlaylistWithNoSongsHasNoCover() {
+        val mix = symphony.groove.playlist.create("Empty", emptyList())
+        symphony.groove.playlist.add(mix)
+        symphony.groove.readyDeferred.complete(true)
+        advance(interval)
+        advanceUntil { store.read().playlists.any { it.id == mix.id } }
+        assertNull(store.read().playlists.single { it.id == mix.id }.artworkPath)
     }
 
     @Test

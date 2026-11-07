@@ -31,7 +31,8 @@ To add a command: add the type and its encoding in `PlaybackCommand`, handle it 
 
 - `PlaybackPublisher` hears player events, throttles them to once a second, and writes a `PlaybackSnapshot` (SharedPreferences `playback_snapshot`, JSON) through `PlaybackSnapshotStore`. Then it updates the widgets through `PlaybackWidgetHost`.
 - `PlaybackArtwork` shrinks covers to fit what Android lets a widget send. A widget keeps one layout per size, each with the image, so the limit is divided between them.
-- `PlaybackWidgetState` combines the snapshot, artwork and `WidgetAppearance`.
+- `PlaybackWidgetState` combines the snapshot, artwork, list covers and `WidgetAppearance`.
+- `CoverLoader` loads the covers of a list, shown no larger than they need to be. It keeps what's still on show, so a queue moving on by one song loads one image. A playlist's own cover keeps its file name when replaced, so `WidgetCover` also has a version.
 - `WidgetAppearance` reads the theme from the `settings` preferences through `AppearanceSettings`, without `Symphony`. `forWidgets()` then corrects accent colors too pale to see on a widget. The app's own theme is not changed.
 - **Progress doesn't tick.** It shows where the song was at the last event. Moving it would mean constant updates.
 
@@ -44,22 +45,23 @@ Built with Glance. All receivers are `android:exported="false"` and live in `wid
 | Picker name | Receiver | Default | Smallest | What changes with size |
 |-------------|----------|---------|----------|------------------------|
 | Now playing bar | `NowPlayingBarReceiver` | 4×1 | 180×56dp | From 280dp wide: adds artwork and previous |
-| Full player | `FullPlayerReceiver` | 4×2 | 180×56dp | Below 280×110dp it is the bar. From 140dp tall: larger artwork |
+| Full player | `FullPlayerReceiver` | 4×2 | 180×56dp | Below 280×110dp it is the bar. From 130dp tall: larger artwork |
 | Album art | `AlbumArtReceiver` | 2×2 | 110×110dp | Fills whatever it's given |
 | Quick actions | `QuickActionsReceiver` | 2×1 | 56×56dp | Below 110dp wide: one button |
 | Play button | `QuickActionsSmallReceiver` | 1×1 | 56×56dp | Above 110dp wide: both buttons |
-| Playlist shortcuts | `PlaylistShortcutsReceiver` | 4×2 | 180×110dp | From 250dp wide: two columns |
+| Playlist shortcuts | `PlaylistShortcutsReceiver` | 4×2 | 180×110dp | From 300dp wide: two columns |
 | Up next | `UpNextReceiver` | 4×3 | 180×110dp | The list scrolls |
 | Suggested for you | `SuggestedReceiver` | 4×2 | 180×110dp | The list scrolls |
-| Synced lyrics | `LyricsReceiver` | 4×2 | 180×110dp | The same three lines |
+| Synced lyrics | `LyricsReceiver` | 4×2 | 180×110dp | From 250dp wide: cover. From 320×130dp: larger cover and text, song name. From 320×200dp: larger again, artist |
 
-The bar and Full player are one `PlayerWidget`, as are Quick actions and Play button. The list widgets show text only: each image would count against the limit on what a widget can send.
+The bar and Full player are one `PlayerWidget`, as are Quick actions and Play button. List rows show a 40dp cover, or a music note if there's none. Images count against the limit on what a widget can send and go out with every update, so `PlaybackArtwork` shares the limit between them.
 
 ### Things that are easy to get wrong
 
 - **Android picks the closest size, not the largest that fits.** With `SizeMode.Responsive`, every bucket is compared by distance. A bar bucket wider than the full player's would win on a big widget. `WidgetSizingTest` checks this.
 - **`minResizeWidth` / `minResizeHeight` must not go below the smallest bucket**, or the content gets clipped. Also tested.
 - **Touch targets are 48dp.** Use `WidgetControl` and `WidgetPlayButton`, which already are.
+- **Launchers can scale widgets.** MIUI draws them smaller and gives the layout more room than the size it reports, so a widget can have space left over that no size bucket knows of. Decide where it goes: the full player is centered as a whole so it's shared evenly above and below, as a `defaultWeight()` on one part would put it all there.
 - **Don't publish from `onUpdate`.** A publish updates the widgets, which calls `onUpdate`, which never ends. Receivers only publish from `onEnabled`.
 - **Don't `runBlocking` on the main thread in tests of code that uses `Dispatchers.Main`.** It deadlocks.
 - **The whole widget has no content description, on purpose.** TalkBack reads its text, which a description on the root would hide. Every button and image has its own.

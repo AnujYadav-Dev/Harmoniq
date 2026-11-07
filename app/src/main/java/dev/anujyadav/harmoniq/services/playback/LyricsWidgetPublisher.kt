@@ -37,7 +37,11 @@ data class LyricsWidgetContent(
     val previous: String? = null,
     val current: String? = null,
     val next: String? = null,
+    val songArtist: String? = null,
+    val artworkPath: String? = null,
 ) {
+    val cover get() = artworkPath?.let { WidgetCover(it) }
+
     enum class Kind {
         /** Nothing is playing, or nothing has been followed yet. */
         Idle,
@@ -85,7 +89,7 @@ class LyricsWidgetPublisher(
 
     private var loadJob: Job? = null
     private var loadedSongId: String? = null
-    private var loadedSongTitle: String? = null
+    private var loadedSong: PlaybackSnapshot.Item? = null
     private var lastPublishAt = NEVER
     private var isLinePublishScheduled = false
     private var isScreenReceiverRegistered = false
@@ -178,7 +182,7 @@ class LyricsWidgetPublisher(
     private fun forgetSong() {
         loadJob?.cancel()
         loadedSongId = null
-        loadedSongTitle = null
+        loadedSong = null
         syncedLines = emptyList()
         lineIndex = NO_LINE
     }
@@ -187,7 +191,7 @@ class LyricsWidgetPublisher(
         forgetSong()
         isFollowing = false
         loadedSongId = song.id
-        loadedSongTitle = song.title
+        loadedSong = song.toWidgetItem(symphony)
         loadJob = backgroundScope.launch {
             val content = try {
                 symphony.groove.song.getLyrics(song)?.let { TimedContent.fromLyrics(it) }
@@ -209,7 +213,7 @@ class LyricsWidgetPublisher(
             syncedLines = content!!.pairs
             evaluateNow()
         } else {
-            publish(LyricsWidgetContent(kind = kind, songTitle = loadedSongTitle))
+            publish(LyricsWidgetContent(kind = kind).withLoadedSong())
         }
     }
 
@@ -250,8 +254,14 @@ class LyricsWidgetPublisher(
         if (!isFollowing) {
             return
         }
-        publish(contentAt(syncedLines, lineIndex, loadedSongTitle))
+        publish(contentAt(syncedLines, lineIndex, loadedSong?.title).withLoadedSong())
     }
+
+    private fun LyricsWidgetContent.withLoadedSong() = copy(
+        songTitle = loadedSong?.title,
+        songArtist = loadedSong?.artist,
+        artworkPath = loadedSong?.artworkPath,
+    )
 
     private fun publish(content: LyricsWidgetContent) {
         if (LyricsWidgetStore.content.value == content) {

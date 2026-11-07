@@ -13,6 +13,13 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 /**
+ * An image of a widget's list.
+ *
+ * @param version tells apart a file that was replaced under the same name.
+ */
+data class WidgetCover(val path: String, val version: Long = 0L)
+
+/**
  * What widgets show, kept on disk so they can draw with the app closed and without creating
  * Symphony. It's only a copy of the last known state, the player itself is the truth.
  */
@@ -51,10 +58,24 @@ data class PlaybackSnapshot(
         val album: String? = null,
         val artworkPath: String? = null,
         val queueIndex: Int? = null,
-    )
+    ) {
+        val cover get() = artworkPath?.let { WidgetCover(it) }
+    }
 
+    /**
+     * @param artworkPath its own cover, or that of its first song.
+     * @param artworkVersion a playlist's own cover keeps its name when it's replaced.
+     */
     @Serializable
-    data class PlaylistItem(val id: String, val title: String, val songCount: Int)
+    data class PlaylistItem(
+        val id: String,
+        val title: String,
+        val songCount: Int,
+        val artworkPath: String? = null,
+        val artworkVersion: Long = 0L,
+    ) {
+        val cover get() = artworkPath?.let { WidgetCover(it, artworkVersion) }
+    }
 
     /** The time alone doesn't make a change worth redrawing widgets for. */
     fun hasSameContentAs(other: PlaybackSnapshot) = copy(capturedAtMs = 0L) == other.copy(capturedAtMs = 0L)

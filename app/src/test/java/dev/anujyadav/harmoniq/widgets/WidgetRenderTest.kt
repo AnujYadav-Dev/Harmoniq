@@ -47,6 +47,7 @@ class WidgetRenderTest(useSystemColors: Boolean) {
     private val application = ApplicationProvider.getApplicationContext<HarmoniqApplication>()
     private val song = PlaybackSnapshot.Item("primary:Music/a.mp3", "A song", "An artist")
     private val played = PlaybackSnapshot(song = song, positionMs = 1_000L, durationMs = 2_000L)
+    private val cover = Bitmap.createBitmap(4, 4, Bitmap.Config.ARGB_8888)
 
     private fun state(snapshot: PlaybackSnapshot = played) = PlaybackWidgetState(
         snapshot,
@@ -89,18 +90,30 @@ class WidgetRenderTest(useSystemColors: Boolean) {
                 LyricsWidgetContent(LyricsWidgetContent.Kind.Synced, "A song", "One", "Two", "Three"),
                 LyricsWidgetContent(LyricsWidgetContent.Kind.Synced, "A song"),
             ).forEach { content ->
-                val lyrics = LyricsWidgetState(content, isEnabled = true, appearance)
-                assertNotNull(inflate(render(DpSize(180.dp, 110.dp)) { LyricsContent(lyrics) }))
+                listOf(null, cover).forEach { artwork ->
+                    val lyrics = LyricsWidgetState(content, isEnabled = true, appearance, artwork)
+                    LyricsWidgetSizes.All.forEach { size ->
+                        assertNotNull(inflate(render(size) { LyricsContent(lyrics) }))
+                    }
+                }
             }
             val listSize = DpSize(250.dp, 180.dp)
             val full = state(
                 snapshot.copy(
-                    playlists = List(4) { PlaybackSnapshot.PlaylistItem("p$it", "Playlist $it", it) },
-                    queue = List(3) { PlaybackSnapshot.Item("q$it", "Song $it", "Artist", queueIndex = it + 1) },
+                    playlists = List(4) {
+                        PlaybackSnapshot.PlaylistItem("p$it", "Playlist $it", it, artworkPath = "/c$it.jpg")
+                    },
+                    queue = List(3) {
+                        PlaybackSnapshot.Item("q$it", "Song $it", "Artist", artworkPath = "/c$it.jpg", queueIndex = it + 1)
+                    },
                     suggestions = List(3) { PlaybackSnapshot.Item("s$it", "Song $it", "Artist") },
                 )
             )
-            listOf(state, full).forEach { listState ->
+            val withCovers = full.copy(
+                covers = (full.snapshot.playlists.mapNotNull { it.cover } + full.snapshot.queue.mapNotNull { it.cover })
+                    .associateWith { cover },
+            )
+            listOf(state, full, withCovers).forEach { listState ->
                 LibraryWidgetDimens.PlaylistSizes.forEach { size ->
                     assertNotNull(inflate(render(size) { PlaylistShortcutsContent(listState) }))
                 }

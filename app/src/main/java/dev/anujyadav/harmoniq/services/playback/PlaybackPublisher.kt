@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import dev.anujyadav.harmoniq.Symphony
+import dev.anujyadav.harmoniq.services.groove.Playlist
 import dev.anujyadav.harmoniq.services.groove.Song
 import dev.anujyadav.harmoniq.services.groove.SongSuggestions
 import dev.anujyadav.harmoniq.services.radio.Radio
@@ -20,6 +21,15 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+internal fun Song.toWidgetItem(symphony: Symphony, queueIndex: Int? = null) = PlaybackSnapshot.Item(
+    path = path,
+    title = title,
+    artist = artists.joinToString(", "),
+    album = album,
+    artworkPath = coverFile?.let { symphony.database.artworkCache.get(it).absolutePath },
+    queueIndex = queueIndex,
+)
 
 /**
  * Keeps [PlaybackSnapshot] up to date for widgets. Runs on events only, never on the position
@@ -252,7 +262,7 @@ class PlaybackPublisher(
         }
         return playlists.getHomePlaylists()
             .take(PlaybackSnapshot.PLAYLISTS_PREVIEW_LIMIT)
-            .map { PlaybackSnapshot.PlaylistItem(it.id, it.title, it.numberOfTracks) }
+            .map { toPlaylistItem(it) }
     }
 
     private fun upcomingQueue(): List<PlaybackSnapshot.Item> {
@@ -268,14 +278,23 @@ class PlaybackPublisher(
 
     private fun isInLibrary(path: String) = symphony.groove.song.pathCache.containsKey(path)
 
-    private fun toItem(song: Song, queueIndex: Int? = null) = PlaybackSnapshot.Item(
-        path = song.path,
-        title = song.title,
-        artist = song.artists.joinToString(", "),
-        album = song.album,
-        artworkPath = song.coverFile?.let { symphony.database.artworkCache.get(it).absolutePath },
-        queueIndex = queueIndex,
-    )
+    private fun toItem(song: Song, queueIndex: Int? = null) = song.toWidgetItem(symphony, queueIndex)
+
+    // the same choice as the app's own playlist tiles
+    private fun toPlaylistItem(playlist: Playlist): PlaybackSnapshot.PlaylistItem {
+        val ownCover = symphony.groove.playlist.covers.get(playlist.id)
+        return PlaybackSnapshot.PlaylistItem(
+            id = playlist.id,
+            title = playlist.title,
+            songCount = playlist.numberOfTracks,
+            artworkPath = ownCover?.absolutePath
+                ?: playlist.firstSongId(symphony)
+                    ?.let { symphony.groove.song.get(it) }
+                    ?.toWidgetItem(symphony)
+                    ?.artworkPath,
+            artworkVersion = ownCover?.lastModified() ?: 0L,
+        )
+    }
 
     override fun onSymphonyReady() {
         start()

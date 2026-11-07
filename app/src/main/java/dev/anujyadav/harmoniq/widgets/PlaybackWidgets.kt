@@ -45,6 +45,9 @@ import kotlinx.coroutines.flow.first
 internal abstract class PlaybackWidget(private val artworkSizeDp: Int?) : GlanceAppWidget() {
     protected abstract val sizes: Set<DpSize>
 
+    /** For a widget with a list. */
+    protected open val listCovers: ((density: Float) -> ListCovers)? = null
+
     override val sizeMode: SizeMode get() = SizeMode.Responsive(sizes)
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -54,6 +57,7 @@ internal abstract class PlaybackWidget(private val artworkSizeDp: Int?) : Glance
             artworkSizePx = artworkSizeDp?.let { (it * density).toInt() },
             // Android keeps a layout for each size, each with the image
             imagesInWidget = sizes.size,
+            listCovers = listCovers?.invoke(density),
         )
         val initial = states.first()
         provideContent {
@@ -90,7 +94,7 @@ internal object PlayerSizes {
     val Bar = DpSize(180.dp, 56.dp)
     val WideBar = DpSize(280.dp, 56.dp)
     val Full = DpSize(280.dp, 110.dp)
-    val Tall = DpSize(280.dp, 140.dp)
+    val Tall = DpSize(280.dp, 130.dp)
     val All = setOf(Bar, WideBar, Full, Tall)
     const val ARTWORK_DP = 96
 }
@@ -154,8 +158,12 @@ internal fun PlayerContent(state: PlaybackWidgetState) {
     val size = LocalSize.current
     WidgetRoot {
         when {
-            size.height >= PlayerSizes.Tall.height -> FullPlayer(state, WidgetDimens.ArtworkFullSize)
-            size.height >= PlayerSizes.Full.height -> FullPlayer(state, WidgetDimens.ArtworkBarSize)
+            size.height >= PlayerSizes.Tall.height ->
+                FullPlayer(state, WidgetDimens.ArtworkFullSize, WidgetDimens.TallSongToProgressGap)
+
+            size.height >= PlayerSizes.Full.height ->
+                FullPlayer(state, WidgetDimens.ArtworkBarSize, WidgetDimens.SongToProgressGap)
+
             else -> PlayerBar(state, isWide = size.width >= PlayerSizes.WideBar.width)
         }
     }
@@ -195,16 +203,17 @@ private fun PlayerBar(state: PlaybackWidgetState, isWide: Boolean) {
 }
 
 @Composable
-private fun FullPlayer(state: PlaybackWidgetState, artworkSize: Dp) {
+private fun FullPlayer(state: PlaybackWidgetState, artworkSize: Dp, songToProgressGap: Dp) {
     val snapshot = state.snapshot
+    val iconInset = WidgetDimens.FullPlayerIconEdgeInset
+    // no part of it takes up what's spare, launchers can give a widget more than its sizes say.
+    // Centered as a whole, that much is left both above and below
     Column(
-        modifier = GlanceModifier.fillMaxSize().padding(
-            horizontal = WidgetDimens.ContentPadding,
-            vertical = WidgetDimens.TightPadding,
-        ),
+        modifier = GlanceModifier.fillMaxSize().padding(horizontal = WidgetDimens.TightPadding),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
-            modifier = GlanceModifier.fillMaxWidth().defaultWeight(),
+            modifier = GlanceModifier.fillMaxWidth().padding(start = iconInset),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             WidgetArtwork(
@@ -221,7 +230,11 @@ private fun FullPlayer(state: PlaybackWidgetState, artworkSize: Dp) {
             }
         }
         if (snapshot.song != null) {
-            ProgressBar(state)
+            Spacer(GlanceModifier.height(songToProgressGap))
+            Box(modifier = GlanceModifier.fillMaxWidth().padding(horizontal = iconInset)) {
+                ProgressBar(state)
+            }
+            Spacer(GlanceModifier.height(WidgetDimens.ProgressGap))
         }
         Row(
             modifier = GlanceModifier.fillMaxWidth(),

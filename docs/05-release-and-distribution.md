@@ -92,20 +92,20 @@ Output goes to `app/release/` by default. That's where the existing `app-*-relea
 Version info lives in `app/build.gradle.kts`:
 
 ```kotlin
-versionCode = 7
-versionName = "1.6.0"
+versionCode = 8
+versionName = "1.6.1"
 versionName = System.getenv("APP_VERSION_NAME") ?: versionName
 ```
 
 - **`versionCode`** is an integer Android uses to decide whether an install is an upgrade. **It must increase with every release you distribute.** Installing a lower `versionCode` over a higher one fails with `INSTALL_FAILED_VERSION_DOWNGRADE`.
 - **`versionName`** is the human-readable version shown in **Settings → About** as `v<versionName>`.
 - The in-app update check (`AppMeta.fetchLatestStableVersion`) reads the GitHub **latest release `tag_name`** from `AnujYadav-Dev/Harmoniq`. Tag releases as **`v<versionName>`** (e.g. `v1.2.0`) so the tag matches the version the app reports.
-- For a nightly, build with `APP_VERSION_NAME` containing `-nightly` (e.g. `1.6.0-nightly.1`) and publish it as a GitHub **pre-release**. `isNightlyBuild()` then checks pre-releases instead of the latest stable release.
+- For a nightly, build with `APP_VERSION_NAME` containing `-nightly` (e.g. `1.6.1-nightly.1`) and publish it as a GitHub **pre-release**. `isNightlyBuild()` then checks pre-releases instead of the latest stable release.
 
 ```bash
-APP_VERSION_NAME=1.6.0-nightly.1 ./gradlew :app:assembleNightly
+APP_VERSION_NAME=1.6.1-nightly.1 ./gradlew :app:assembleNightly
 ```
-Git Bash: builds the nightly variant with an overridden version name, without editing the build file. (PowerShell: `$env:APP_VERSION_NAME="1.6.0-nightly.1"; .\gradlew.bat :app:assembleNightly`.)
+Git Bash: builds the nightly variant with an overridden version name, without editing the build file. (PowerShell: `$env:APP_VERSION_NAME="1.6.1-nightly.1"; .\gradlew.bat :app:assembleNightly`.)
 
 ## APK vs AAB
 

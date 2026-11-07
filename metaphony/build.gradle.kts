@@ -55,6 +55,11 @@ android {
         freeCompilerArgs += "-opt-in=kotlin.RequiresOptIn"
     }
 
+    // audio.ogg for the device tests; the other test songs are in src/main/assets
+    sourceSets {
+        getByName("androidTest").assets.srcDir("../app/src/test/resources")
+    }
+
     testOptions {
         androidResources {
             noCompress.addAll(listOf("flac", "ogg", "mp3"))

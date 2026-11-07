@@ -1,76 +1,66 @@
 ﻿package dev.anujyadav.harmoniq.metaphony
 
+import android.os.ParcelFileDescriptor
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class AudioMetadataParserTest {
     @Test
     fun testFlac() {
-        val context = InstrumentationRegistry.getInstrumentation().context
-        val filename = "audio.flac"
-        val metadata = AudioMetadataParser.parse(
-            filename,
-            context.assets.openFd(filename).parcelFileDescriptor.detachFd(),
-        )
-        assertMetadata("flac", metadata)
+        assertMetadata("flac", parseAsset("audio.flac"))
     }
 
     @Test
     fun testOgg() {
-        val context = InstrumentationRegistry.getInstrumentation().context
-        val filename = "audio.ogg"
-        val metadata = AudioMetadataParser.parse(
-            filename,
-            context.assets.openFd(filename).parcelFileDescriptor.detachFd(),
-        )
-        assertMetadata("ogg", metadata)
+        assertMetadata("ogg", parseAsset("audio.ogg"))
     }
 
     @Test
     fun testMp3() {
-        val context = InstrumentationRegistry.getInstrumentation().context
-        val filename = "audio.mp3"
-        val metadata = AudioMetadataParser.parse(
-            filename,
-            context.assets.openFd(filename).parcelFileDescriptor.detachFd(),
-        )
-        assertMetadata("mp3", metadata)
+        assertMetadata("mp3", parseAsset("audio.mp3"))
     }
 
     @Test
     fun testMp3Id23() {
-        val context = InstrumentationRegistry.getInstrumentation().context
-        val filename = "audio-id3v2.3.mp3"
-        val metadata = AudioMetadataParser.parse(
-            filename,
-            context.assets.openFd(filename).parcelFileDescriptor.detachFd(),
-        )
-        assertMetadata("mp3id23", metadata)
+        assertMetadata("mp3id23", parseAsset("audio-id3v2.3.mp3"))
     }
 
     @Test
     fun testMp3Id24() {
+        assertMetadata("mp3id24", parseAsset("audio-id3v2.4.mp3"))
+    }
+
+    // The descriptor from assets.openFd() is for the whole test APK, with the asset somewhere inside
+    // it, and the parser reads from the start. So hand it a real file, as the app does.
+    private fun parseAsset(filename: String): AudioMetadata? {
         val context = InstrumentationRegistry.getInstrumentation().context
-        val filename = "audio-id3v2.4.mp3"
-        val metadata = AudioMetadataParser.parse(
-            filename,
-            context.assets.openFd(filename).parcelFileDescriptor.detachFd(),
-        )
-        assertMetadata("mp3id24", metadata)
+        val file = File.createTempFile("metadata", filename, context.cacheDir)
+        try {
+            context.assets.open(filename).use { input ->
+                file.outputStream().use { output -> input.copyTo(output) }
+            }
+            val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).detachFd()
+            return AudioMetadataParser.parse(filename, fd)
+        } finally {
+            file.delete()
+        }
     }
 
     fun assertMetadata(source: String, metadata: AudioMetadata?) {
         Assert.assertNotNull(metadata)
         metadata!!
-        Assert.assertEquals("Demo Audio2", metadata.title)
-        Assert.assertArrayEquals(
-            arrayOf("Demo Artist 1; Demo Artist 2"),
-            metadata.artists.toTypedArray(),
-        )
+        Assert.assertEquals("Demo Audio", metadata.title)
+        val expectedArtists = when (source) {
+            // ID3v2.4 is the only one of these files that stores two separate values
+            "mp3id24" -> arrayOf("Demo Artist 1", "Demo Artist 2")
+            else -> arrayOf("Demo Artist 1; Demo Artist 2")
+        }
+        Assert.assertArrayEquals(expectedArtists, metadata.artists.toTypedArray())
         Assert.assertArrayEquals(
             arrayOf("Demo Artist 2"),
             metadata.albumArtists.toTypedArray(),
@@ -87,17 +77,13 @@ class AudioMetadataParserTest {
         Assert.assertEquals(null, metadata.date)
         Assert.assertEquals(null, metadata.lyrics)
         val expectedBitrate = when (source) {
-            "ogg" -> 112
-            "flac" -> 144475
+            // these files hold one second of near silence: 279 and 162 bytes of audio
+            "ogg" -> 2
+            "flac" -> 1
             else -> 130
         }
         Assert.assertEquals(expectedBitrate, metadata.bitrate)
-        val expectedLength = when (source) {
-            // not sure why, we ignore this for now
-            "ogg" -> -2147483
-            else -> 1
-        }
-        Assert.assertEquals(expectedLength, metadata.lengthInSeconds)
+        Assert.assertEquals(1, metadata.lengthInSeconds)
         Assert.assertEquals(44100, metadata.sampleRate)
         Assert.assertEquals(2, metadata.channels)
         Assert.assertEquals(1, metadata.pictures.size)

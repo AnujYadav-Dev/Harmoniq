@@ -2,7 +2,9 @@ package dev.anujyadav.harmoniq.services.database
 
 import androidx.room.testing.MigrationTestHelper
 import androidx.test.platform.app.InstrumentationRegistry
+import dev.anujyadav.harmoniq.BuildConfig
 import org.junit.Assert.assertEquals
+import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -21,6 +23,9 @@ class PersistentDatabaseMigrationTest {
 
     @Test
     fun migrate1To2KeepsPlaylists() {
+        // the schemas it reads are assets of debug builds only, shipping them would only make the
+        // app bigger. The migration is the same code in every build type
+        assumeTrue(BuildConfig.DEBUG)
         helper.createDatabase(DB_NAME, 1).apply {
             execSQL(
                 "INSERT INTO playlists (id, title, songPaths, uri, path) VALUES (?, ?, ?, ?, ?)",

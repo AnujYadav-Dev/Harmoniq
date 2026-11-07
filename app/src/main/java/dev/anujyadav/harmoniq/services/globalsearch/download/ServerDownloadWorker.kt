@@ -1,5 +1,6 @@
 package dev.anujyadav.harmoniq.services.globalsearch.download
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.Data
@@ -88,7 +89,7 @@ class ServerDownloadWorker(
             pipeline.run(request, attemptSeed = "$id:$runAttemptCount")
         } catch (err: CancellationException) {
             // only a user cancel releases the server job; a lost network keeps it for the next run
-            if (stopReason == WorkInfo.STOP_REASON_CANCELLED_BY_APP) {
+            if (wasCancelledByApp()) {
                 withContext(NonCancellable) { pipeline.cancel(request.key) }
             }
             throw err
@@ -111,6 +112,10 @@ class ServerDownloadWorker(
             }
         }
     }
+
+    // marked as Android 12+, but all it does is read a number WorkManager keeps on every version
+    @SuppressLint("NewApi")
+    private fun wasCancelledByApp() = stopReason == WorkInfo.STOP_REASON_CANCELLED_BY_APP
 
     private suspend fun fail(pipeline: DownloadPipeline, request: DownloadRequest, code: String): Result {
         // a rotated token or a moved server: the next run uses the new connection

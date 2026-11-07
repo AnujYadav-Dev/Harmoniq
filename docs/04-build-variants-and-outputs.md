@@ -59,7 +59,6 @@ Everything under `build/` and `.cxx/` is generated and git-ignored.
 |--------|------|
 | Debug APKs | `app/build/outputs/apk/debug/app-<abi>-debug.apk` |
 | Release APKs (signed) | `app/build/outputs/apk/release/app-<abi>-release.apk` |
-| Release APKs (no signing env vars) | `app/build/outputs/apk/release/app-<abi>-release-unsigned.apk` |
 | Nightly / canary APKs | `app/build/outputs/apk/nightly/…`, `app/build/outputs/apk/canary/…` |
 | Release AAB | `app/build/outputs/bundle/release/app-release.aab` |
 | Output metadata (version, file list) | `output-metadata.json` next to the APKs |

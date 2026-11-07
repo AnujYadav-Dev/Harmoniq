@@ -48,7 +48,7 @@ Also allows a version downgrade (`-d`). Only works for debuggable builds or with
 | `./gradlew :app:testDebugUnitTest --tests "dev.anujyadav.harmoniq.services.globalsearch.*"` | Runs only the Global Search tests |
 | `./gradlew :metaphony:testDebugUnitTest` | JVM unit tests of the native-parser module's Kotlin code (date parsing) |
 | `./gradlew :metaphony:connectedDebugAndroidTest` | Runs `AudioMetadataParserTest` **on a connected device/emulator** (instrumented test for the native parser) |
-| `./gradlew :app:lintDebug` | Android lint → `app/build/reports/lint-results-debug.html`. The `NullSafeMutableLiveData` check is disabled in `app/build.gradle.kts` because it crashes AGP 8.7.3's lint (remove the exception after an AGP upgrade) |
+| `./gradlew :app:lintDebug` | Android lint → `app/build/reports/lint-results-debug.html`. `app/build.gradle.kts` disables `NullSafeMutableLiveData`, `FrequentlyChangingValue`, `RememberInComposition` and `AutoboxingStateCreation`, which crash AGP 8.7.3's lint, and `ProduceStateDoesNotAssignValue`, which misreads the code under it. They are not checking your code until AGP is upgraded and the exceptions are removed |
 | `./gradlew :app:lintRelease` | Lint against the release variant (run before releasing) |
 
 ## Clean / rebuild
@@ -102,6 +102,6 @@ The everyday loop: install the latest code and launch it.
 A quick compile check after editing Kotlin, before committing.
 
 ```bash
-./gradlew clean :app:lintRelease :app:testReleaseUnitTest :app:assembleRelease :app:bundleRelease
+./gradlew clean :app:lintRelease :app:testDebugUnitTest :app:testReleaseUnitTest :app:assembleRelease :app:bundleRelease
 ```
 The release pipeline, with the `SIGNING_*` variables set.

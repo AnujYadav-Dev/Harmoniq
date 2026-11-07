@@ -5,6 +5,7 @@
         <!-- debug builds only: lets adb send playback commands, see DEVELOPER_GUIDE.md -->
         <service
             android:name=".services.radio.RadioNotificationService"
-            android:exported="true" />
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback" />
     </application>
 </manifest>

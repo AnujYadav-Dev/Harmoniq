@@ -89,4 +89,4 @@ The bar and Full player are one `PlayerWidget`, as are Quick actions and Play bu
 
 The tests cover what is drawn, how commands travel, sizes and contrast. **They can't show** how a real launcher draws or resizes a widget, what the picker looks like, whether TalkBack reads well, or how much battery is used. Check those on a phone.
 
-`:app:lintDebug` currently crashes inside Compose's own lint rule (AGP 8.7 with Compose 1.9), even on files nothing here has touched.
+The widget picker previews use `android:tint` with `tools:ignore="UseAppTint"`: a launcher draws them with plain Android views, where `app:tint` does nothing.

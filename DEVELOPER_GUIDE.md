@@ -75,7 +75,7 @@ See [Widgets & background playback](docs/11-widgets-and-background-playback.md).
 
 ## The five things most likely to trip you up
 
-1. **Release builds are unsigned unless the `SIGNING_*` environment variables are set.** In that case Gradle still "succeeds", but produces `*-release-unsigned.apk` files that cannot be installed, and `installRelease` doesn't exist. See [Release & distribution](docs/05-release-and-distribution.md).
+1. **Release builds need the `SIGNING_*` environment variables.** Without them `assembleRelease` fails with `missing required property "storeFile"`, and `installRelease` doesn't exist. See [Release & distribution](docs/05-release-and-distribution.md).
 2. **The native module needs NDK + CMake 3.22.1.** A missing NDK or CMake is the most common first-build failure. See [Environment setup](docs/02-environment-setup.md#3-install-sdk-components).
 3. **ABI splits are on.** Every APK build produces five APKs (`universal`, `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64`). Share the universal one unless you know the device's ABI. See [Build variants & outputs](docs/04-build-variants-and-outputs.md#abi-splits).
 4. **Never commit `secrets/`, `*.jks` or `local.properties`.** They are git-ignored; keep it that way. Losing the release keystore means you can never ship an update that installs over existing installs. See [Configuration & secrets](docs/06-configuration-and-secrets.md).

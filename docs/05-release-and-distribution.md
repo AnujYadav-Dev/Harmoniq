@@ -29,9 +29,9 @@ The local keystore is `secrets/harmoniq-release.jks`. Its alias and passwords ar
 
 ### What happens if the variables are missing
 
-Gradle does **not** fail. The signing config simply isn't "ready", so:
+The signing config isn't "ready", so:
 
-- `./gradlew :app:assembleRelease` succeeds but writes `app-<abi>-release-unsigned.apk`. **Unsigned APKs cannot be installed.**
+- `./gradlew :app:assembleRelease` **fails** while packaging, after the slow R8 step, with `SigningConfig "release" is missing required property "storeFile"`. It also removes the APKs of the last release build from the output folder.
 - The `installRelease` / `installNightly` / `installCanary` tasks **don't exist** ("task 'installRelease' not found").
 
 If you see either symptom, the environment variables aren't set in the shell running Gradle.
@@ -132,9 +132,9 @@ Shows the built-in URL of the last release build (use `canary`/`nightly` in the 
 4. Run the checks:
 
 ```bash
-./gradlew :app:lintRelease :app:testReleaseUnitTest
+./gradlew :app:lintRelease :app:testDebugUnitTest :app:testReleaseUnitTest
 ```
-Runs Android lint and the JVM unit tests against the release variant. The report is at `app/build/reports/lint-results-release.html`.
+Runs Android lint and the JVM unit tests against both variants. The database migration test is skipped in the release variant, as the schemas it reads are only in debug builds, so run both. Lint has to finish with no errors. Four Compose rules are off, see [Gradle commands](07-gradle-commands.md#test--lint). The report is at `app/build/reports/lint-results-release.html`.
 
 5. Build signed artifacts from a clean tree (`clean :app:assembleRelease`, plus `:app:bundleRelease` for Play).
 6. **Install the release build on a real device and smoke-test it.** Minification only happens in release-type builds. Check: add a media folder and scan, play/pause/skip, the notification controls, lyrics, playlists, settings screens, and a cold start (`adb shell am force-stop dev.anujyadav.harmoniq`, then relaunch).

@@ -55,7 +55,7 @@ android {
         freeCompilerArgs += "-opt-in=kotlin.RequiresOptIn"
     }
 
-    // audio.ogg for the device tests; the other test songs are in src/main/assets
+    // the test songs for the device tests. Not in src/main/assets, which would ship them in the app
     sourceSets {
         getByName("androidTest").assets.srcDir("../app/src/test/resources")
     }
